@@ -1,4 +1,4 @@
-# $Id: XPathContext.pm,v 1.26 2003/05/21 10:49:09 m_ilya Exp $
+# $Id: XPathContext.pm,v 1.30 2003/09/22 08:02:56 m_ilya Exp $
 
 package XML::LibXML::XPathContext;
 
@@ -7,7 +7,7 @@ use vars qw($VERSION @ISA $USE_LIBXML_DATA_TYPES);
 
 use XML::LibXML::NodeList;
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 require DynaLoader;
 
 @ISA = qw(DynaLoader);
@@ -33,9 +33,8 @@ sub findnodes {
 
 sub find {
     my ($self, $xpath, $node) = @_;
-    my ($type, @params);
 
-    ($type, @params) = $self->_guarded_find_call('_find', $xpath, $node);
+    my ($type, @params) = $self->_guarded_find_call('_find', $xpath, $node);
 
     if ($type) {
         return $type->new(@params);
@@ -149,13 +148,15 @@ XML::LibXML::XPathContext - Perl interface to libxml2's xmlXPathContext
     $xc->setContextNode($node);
 
     $xc->registerNs($prefix, $namespace_uri);
+    $xc->unregisterNs($prefix);
+    my $namespace_uri = $xc->lookupNs($prefix);
+
     $xc->registerFunction($name, sub { ... });
     $xc->registerFunctionNS($name, $namespace_uri, sub { ... });
-    $xc->registerVarLookupFunc(sub { ... }, $data);
-
-    $xc->unregisterNs($prefix);
     $xc->unregisterFunction($name);
     $xc->unregisterFunctionNS($name, $namespace_uri);
+
+    $xc->registerVarLookupFunc(sub { ... }, $data);
     $xc->unregisterVarLookupFunc($name);
 
     my @nodes = $xc->findnodes($xpath);
@@ -166,6 +167,7 @@ XML::LibXML::XPathContext - Perl interface to libxml2's xmlXPathContext
     my $result = $xc->find($xpath, $context_node);
     my $value = $xc->findvalue($xpath);
     my $value = $xc->findvalue($xpath, $context_node);
+
 
 =head1 DESCRIPTION
 
@@ -269,6 +271,11 @@ Registers namespace I<$prefix> to I<$namespace_uri>.
 =item B<unregisterNs($prefix)>
 
 Unregisters namespace I<$prefix>.
+
+=item B<lookupNs($prefix)>
+
+Returns namespace URI registered with I<$prefix>. If I<$prefix> is not
+registered to any namespace URI returns C<undef>.
 
 =item B<registerVarLookupFunc($callback, $data)>
 

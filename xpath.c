@@ -165,6 +165,7 @@ xpc_domXPathFind( xmlXPathContextPtr ctxt, xmlChar * path ) {
         if ( tdoc != NULL ) {
             /* after looking through a fragment, we need to drop the
                fake document again */
+	    xmlSetTreeDoc(froot,NULL);
             froot->doc = NULL;
             tdoc->children = NULL;
             tdoc->last     = NULL;

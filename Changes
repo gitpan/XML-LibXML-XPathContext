@@ -1,6 +1,10 @@
-$Id: Changes,v 1.10 2003/05/21 10:45:18 m_ilya Exp $
+$Id: Changes,v 1.12 2003/09/22 08:02:26 m_ilya Exp $
 
 Revision history for Perl module XML::LibXML::XPathContext.
+
+0.05 Mon Sep 22 2003
+
+* lookupNs() method added
 
 0.04 Wed May 21 2003
 

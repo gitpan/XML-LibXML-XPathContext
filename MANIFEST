@@ -18,3 +18,4 @@ t/02-functions.t
 typemap
 xpath.c
 xpath.h
+META.yml                                Module meta-data (added by MakeMaker)

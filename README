@@ -11,13 +11,15 @@ SYNOPSIS
         $xc->setContextNode($node);
 
         $xc->registerNs($prefix, $namespace_uri);
+        $xc->unregisterNs($prefix);
+        my $namespace_uri = $xc->lookupNs($prefix);
+
         $xc->registerFunction($name, sub { ... });
         $xc->registerFunctionNS($name, $namespace_uri, sub { ... });
-        $xc->registerVarLookupFunc(sub { ... }, $data);
-
-        $xc->unregisterNs($prefix);
         $xc->unregisterFunction($name);
         $xc->unregisterFunctionNS($name, $namespace_uri);
+
+        $xc->registerVarLookupFunc(sub { ... }, $data);
         $xc->unregisterVarLookupFunc($name);
 
         my @nodes = $xc->findnodes($xpath);
@@ -109,6 +111,10 @@ METHODS
     unregisterNs($prefix)
         Unregisters namespace *$prefix*.
 
+    lookupNs($prefix)
+        Returns namespace URI registered with *$prefix*. If *$prefix* is not
+        registered to any namespace URI returns "undef".
+
     registerVarLookupFunc($callback, $data)
         Registers variable lookup function *$prefix*. The registered
         function is executed by the XPath engine each time an XPath variable
@@ -195,8 +201,6 @@ BUGS AND CAVEATS
         my $xc = XML::LibXML::XPathContext->new($node);
         $xc->registerFunction('func', sub { $xc->findvalue('1') });
         my $result = $xc->findvalue('func()');
-
-    Currently this module doesn't work on Mac OS X.
 
 AUTHORS
     Based on XML::LibXML and XML::XSLT code by Matt Sergeant and Christian

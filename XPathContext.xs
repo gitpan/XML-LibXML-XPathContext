@@ -1,4 +1,4 @@
-/* $Id: XPathContext.xs,v 1.34 2003/05/21 10:30:15 m_ilya Exp $ */
+/* $Id: XPathContext.xs,v 1.36 2003/09/21 10:05:05 m_ilya Exp $ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -514,7 +514,7 @@ getContextNode( self )
         } else {
             RETVAL = &PL_sv_undef;
         }
-OUTPUT:
+    OUTPUT:
         RETVAL
 
 void 
@@ -563,6 +563,23 @@ registerNs( pxpath_context, prefix, ns_uri )
         }
 
 SV*
+lookupNs( pxpath_context, prefix )
+        SV * pxpath_context
+        SV * prefix
+    PREINIT:
+        xmlXPathContextPtr ctxt = NULL;
+    INIT:
+        ctxt = (xmlXPathContextPtr)SvIV(SvRV(pxpath_context));
+        if ( ctxt == NULL ) {
+            croak("XPathContext: missing xpath context");
+        }
+        xpc_LibXML_configure_xpathcontext(ctxt);
+    CODE:
+        RETVAL = xpc_C2Sv(xmlXPathNsLookup(ctxt, SvPV_nolen(prefix)), NULL);
+    OUTPUT:
+        RETVAL
+
+SV*
 getVarLookupData( self )
         SV * self
     INIT:
@@ -586,11 +603,8 @@ getVarLookupData( self )
         } else {
             RETVAL = &PL_sv_undef;
         }
-
     OUTPUT:
         RETVAL
-
-
 
 void
 registerVarLookupFunc( pxpath_context, lookup_func, lookup_data )
@@ -783,9 +797,8 @@ _findnodes( pxpath_context, perl_xpath )
         if (found != NULL) {
           nodelist = found->nodesetval;  
         } else {
-            nodelist = NULL;
+          nodelist = NULL;
         }
-
         xmlFree(xpath);
 
         sv_2mortal( xpc_LibXML_error );
@@ -832,8 +845,8 @@ _findnodes( pxpath_context, perl_xpath )
             /* prevent libxml2 from freeing the actual nodes */
             if (found->boolval) found->boolval=0;
             xmlXPathFreeObject(found);
-          }
-          else {
+        }
+        else {
             xmlXPathFreeObject(found);
             xpc_LibXML_croak_error();
         }

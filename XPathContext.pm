@@ -1,4 +1,4 @@
-# $Id: XPathContext.pm,v 1.16 2003/03/26 21:21:41 m_ilya Exp $
+# $Id: XPathContext.pm,v 1.20 2003/04/04 09:08:46 m_ilya Exp $
 
 package XML::LibXML::XPathContext;
 
@@ -7,7 +7,7 @@ use vars qw($VERSION @ISA $USE_LIBXML_DATA_TYPES);
 
 use XML::LibXML::NodeList;
 
-$VERSION = "0.01";
+$VERSION = '0.02';
 require DynaLoader;
 
 @ISA = qw(DynaLoader);
@@ -91,7 +91,7 @@ sub unregisterVarLookupFunc {
 # extension function perl dispatcher
 # borrowed from XML::LibXSLT
 
-sub perl_dispatcher {
+sub _perl_dispatcher {
     my $func = shift;
     my @params = @_;
     my @perlParams;
@@ -131,7 +131,11 @@ XML::LibXML::XPathContext - Perl interface to libxml2's xmlXPathContext
 
     use XML::LibXML::XPathContext;
 
+    my $xc = XML::LibXML::XPathContext->new;
     my $xc = XML::LibXML::XPathContext->new($node);
+
+    my $node = $xc->getContextNode;
+    $xc->setContextNode($node);
 
     $xc->registerNs($prefix, $namespace_uri);
     $xc->registerFunction($name, sub { ... });
@@ -147,9 +151,6 @@ XML::LibXML::XPathContext - Perl interface to libxml2's xmlXPathContext
     my $nodelist = $xc->findnodes($xpath);
     my $result = $xc->find($xpath);
     my $value = $xc->findvalue($xpath);
-
-    my $node = $xc->getContextNode;
-    $xc->setContextNode($node);
 
 =head1 DESCRIPTION
 
@@ -237,9 +238,13 @@ This example demonstrates I<registerVarLookup()> usage:
 
 =over 4
 
+=item B<new>
+
+Creates a new XML::LibXML::XPathContext object without a context node.
+
 =item B<new($node)>
 
-Creates a new XML::LibXML::XPathContext object with current node
+Creates a new XML::LibXML::XPathContext object with the context node
 set to I<$node>.
 
 =item B<registerNs($prefix, $namespace_uri)>
@@ -351,6 +356,8 @@ For example, the following code will not work:
     my $xc = XML::LibXML::XPathContext->new($node);
     $xc->registerFunction('func', sub { $xc->findvalue('1') });
     my $result = $xc->findvalue('func()');
+
+Currently this module doesn't work on Mac OS X.
 
 =head1 AUTHORS
 

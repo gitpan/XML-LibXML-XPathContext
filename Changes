@@ -1,6 +1,15 @@
-$Id: Changes,v 1.1 2003/03/26 21:20:45 m_ilya Exp $
+$Id: Changes,v 1.4 2003/04/04 09:05:47 m_ilya Exp $
 
 Revision history for Perl module XML::LibXML::XPathContext.
+
+0.02 Fri Apr  4 2003
+
+* Added missing include xpathInternals.h what fixes problems with
+float numbers used in xpath expressions on platforms where PV is not
+defined as double.
+
+* XML::LibXML::XPathContext objects can be created without specifying
+a current node now. I.e. new()'s parameter $node is optional now.
 
 0.01 Thu Mar 27 2003
 

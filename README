@@ -4,7 +4,11 @@ NAME
 SYNOPSIS
         use XML::LibXML::XPathContext;
 
+        my $xc = XML::LibXML::XPathContext->new;
         my $xc = XML::LibXML::XPathContext->new($node);
+
+        my $node = $xc->getContextNode;
+        $xc->setContextNode($node);
 
         $xc->registerNs($prefix, $namespace_uri);
         $xc->registerFunction($name, sub { ... });
@@ -20,9 +24,6 @@ SYNOPSIS
         my $nodelist = $xc->findnodes($xpath);
         my $result = $xc->find($xpath);
         my $value = $xc->findvalue($xpath);
-
-        my $node = $xc->getContextNode;
-        $xc->setContextNode($node);
 
 DESCRIPTION
     This module augments XML::LibXML by providing Perl interface to
@@ -91,9 +92,12 @@ EXAMPLES
         my @nodes = $xc->findnodes('$A[work_area/street = $B]/name');
 
 METHODS
+    new Creates a new XML::LibXML::XPathContext object without a context
+        node.
+
     new($node)
-        Creates a new XML::LibXML::XPathContext object with current node set
-        to *$node*.
+        Creates a new XML::LibXML::XPathContext object with the context node
+        set to *$node*.
 
     registerNs($prefix, $namespace_uri)
         Registers namespace *$prefix* to *$namespace_uri*.
@@ -184,6 +188,8 @@ BUGS AND CAVEATS
         my $xc = XML::LibXML::XPathContext->new($node);
         $xc->registerFunction('func', sub { $xc->findvalue('1') });
         my $result = $xc->findvalue('func()');
+
+    Currently this module doesn't work on Mac OS X.
 
 AUTHORS
     Based on XML::LibXML and XML::XSLT code by Matt Sergeant and Christian

@@ -1,4 +1,4 @@
-/* $Id: XPathContext.xs,v 1.24 2003/03/26 21:21:41 m_ilya Exp $ */
+/* $Id: XPathContext.xs,v 1.29 2003/04/04 09:08:47 m_ilya Exp $ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,6 +12,7 @@ extern "C" {
 
 /* libxml2 stuff */
 #include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 
 /* XML::LibXML stuff */
 #include "perl-libxml-mm.h"
@@ -128,7 +129,6 @@ LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
         AV * array_result;
         xmlXPathObjectPtr ret;
 
-        /* warn("result is a node list\n");  */
         ret = (xmlXPathObjectPtr) xmlXPathNewNodeSet((xmlNodePtr) NULL);
         array_result = (AV*)SvRV(perl_result);
         length = av_len(array_result);
@@ -154,7 +154,6 @@ LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
                 xmlNodePtr tmp_node;
                 xmlXPathObjectPtr ret;
 
-                /* warn("result is a node\n");  */
                 ret =  (xmlXPathObjectPtr)xmlXPathNewNodeSet(NULL);
                 tmp_node = (xmlNodePtr)PmmSvNode(perl_result);
                 xmlXPathNodeSetAdd(ret->nodesetval,tmp_node);
@@ -166,12 +165,10 @@ LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
                 return ret;
             }
             else if (sv_isa(perl_result, "XML::LibXML::Boolean")) {
-                /* warn("result is a boolean\n"); */
                 return (xmlXPathObjectPtr)
                     xmlXPathNewBoolean(SvIV(SvRV(perl_result)));
             }
             else if (sv_isa(perl_result, "XML::LibXML::Literal")) {
-                /* warn("result is a literal\n"); */
                 return (xmlXPathObjectPtr)
                     xmlXPathNewCString(SvPV_nolen(SvRV(perl_result)));
             }
@@ -180,10 +177,8 @@ LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
                     xmlXPathNewFloat(SvNV(SvRV(perl_result)));
             }
         } else if (SvNOK(perl_result) || SvIOK(perl_result)) {
-            /* warn("result is an unblessed number\n"); */
             return (xmlXPathObjectPtr)xmlXPathNewFloat(SvNV(perl_result));
         } else {
-            /* warn("result is an unblessed string\n"); */
             return (xmlXPathObjectPtr)
                 xmlXPathNewCString(SvPV_nolen(perl_result));
         }
@@ -379,7 +374,7 @@ LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
     /* call perl dispatcher */
     PUTBACK;
 
-    perl_dispatch = sv_2mortal(newSVpv("XML::LibXML::XPathContext::perl_dispatcher",0));
+    perl_dispatch = sv_2mortal(newSVpv("XML::LibXML::XPathContext::_perl_dispatcher",0));
     count = perl_call_sv(perl_dispatch, G_SCALAR|G_EVAL);
     
     SPAGAIN;
@@ -406,16 +401,18 @@ LibXML_configure_namespaces( xmlXPathContextPtr ctxt ) {
     if (ctxt->namespaces != NULL) {
         xmlFree( ctxt->namespaces );
     }
-    if (node->type == XML_DOCUMENT_NODE) {
-        ctxt->namespaces = xmlGetNsList( node->doc,
-                                         xmlDocGetRootElement( node->doc ) );
-    } else {
-        ctxt->namespaces = xmlGetNsList(node->doc, node);
-    }
-    ctxt->nsNr = 0;
-    if (ctxt->namespaces != NULL) {
-        while (ctxt->namespaces[ctxt->nsNr] != NULL)
-            ctxt->nsNr++;
+    if (node != NULL) {
+        if (node->type == XML_DOCUMENT_NODE) {
+            ctxt->namespaces = xmlGetNsList( node->doc,
+                                             xmlDocGetRootElement( node->doc ) );
+        } else {
+            ctxt->namespaces = xmlGetNsList(node->doc, node);
+        }
+        ctxt->nsNr = 0;
+        if (ctxt->namespaces != NULL) {
+            while (ctxt->namespaces[ctxt->nsNr] != NULL)
+                ctxt->nsNr++;
+        }
     }
 }
 
@@ -423,7 +420,11 @@ static void
 LibXML_configure_xpathcontext( xmlXPathContextPtr ctxt ) {
     xmlNodePtr node = PmmSvNode(XPathContextDATA(ctxt)->node);
 
-    ctxt->doc = node->doc;
+    if (node != NULL) {    
+      ctxt->doc = node->doc;
+    } else {
+      ctxt->doc = NULL;
+    }
     ctxt->node = node;
 
     LibXML_configure_namespaces(ctxt);
@@ -431,19 +432,28 @@ LibXML_configure_xpathcontext( xmlXPathContextPtr ctxt ) {
 
 MODULE = XML::LibXML::XPathContext     PACKAGE = XML::LibXML::XPathContext
 
+PROTOTYPES: DISABLE
+
 SV*
-new( CLASS, pnode )
+new( CLASS, ... )
         const char * CLASS
-        SV * pnode
+    PREINIT:
+        SV * pnode = &PL_sv_undef;
     INIT:
         xmlXPathContextPtr ctxt;
-    CODE:
+    CODE:	
+ 	if( items > 1 )
+ 	  pnode = ST(1);
+
         ctxt = xmlXPathNewContext( NULL );
         New(0, ctxt->user, sizeof(XPathContextData), XPathContextData);
         if (ctxt->user == NULL) {
             croak("XPathContext: failed to allocate proxy object");
         } 
-        XPathContextDATA(ctxt)->node = SvREFCNT_inc(pnode);
+
+	if (SvOK(pnode)) {
+          XPathContextDATA(ctxt)->node = SvREFCNT_inc(pnode);
+        }
         XPathContextDATA(ctxt)->lock = 0;
         XPathContextDATA(ctxt)->pool = NULL;
 
@@ -467,10 +477,12 @@ DESTROY( self )
         xs_warn( "DESTROY XPATH CONTEXT" );
         if (ctxt) {
             if (XPathContextDATA(ctxt) != NULL) {
-                if (XPathContextDATA(ctxt)->node != NULL) {
+                if (XPathContextDATA(ctxt)->node != NULL &&
+	            SvOK(XPathContextDATA(ctxt)->node)) {
                     SvREFCNT_dec(XPathContextDATA(ctxt)->node);
                 }
-                if (XPathContextDATA(ctxt)->pool != NULL) {
+                if (XPathContextDATA(ctxt)->pool != NULL &&
+                    SvOK(XPathContextDATA(ctxt)->pool)) {
                     SvREFCNT_dec((SV *)XPathContextDATA(ctxt)->pool);
                 }
                 Safefree(XPathContextDATA(ctxt));
@@ -506,7 +518,7 @@ getContextNode( self )
                                  PmmOWNERPO( PmmPROXYNODE(ctxt->node)));
             
         } else {
-            croak("XPathContext: lost context node");
+            /* croak("XPathContext: lost context node"); */
             RETVAL = &PL_sv_undef;
         }
 OUTPUT:
@@ -522,11 +534,13 @@ setContextNode( self , pnode )
             croak("XPathContext: missing xpath context");
         }
     PPCODE:
-        if (XPathContextDATA(ctxt)->node) {
+        if (XPathContextDATA(ctxt)->node && SvOK(XPathContextDATA(ctxt)->node)) {
             SvREFCNT_dec(XPathContextDATA(ctxt)->node);
         }
         XPathContextDATA(ctxt)->node = pnode;
-        SvREFCNT_inc(pnode);
+        if (SvOK(pnode)) {
+          SvREFCNT_inc(pnode);
+        }
 
 void
 registerNs( pxpath_context, prefix, ns_uri )

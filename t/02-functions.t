@@ -1,6 +1,6 @@
 # -*- cperl -*-
 use Test;
-BEGIN { plan tests => 27 };
+BEGIN { plan tests => 28 };
 
 use XML::LibXML;
 use XML::LibXML::XPathContext;
@@ -19,7 +19,8 @@ $xc->registerFunctionNS('copy','urn:foo',
 
 # copy string, real, integer, nodelist
 ok($xc->findvalue('foo:copy("bar")') eq 'bar');
-ok($xc->findvalue('foo:copy(3.14)') == 3.14);
+ok($xc->findvalue('foo:copy(3.14)') < 3.141); # can't use == here because of
+ok($xc->findvalue('foo:copy(3.14)') > 3.139); # float math
 ok($xc->findvalue('foo:copy(7)') == 7);
 ok($xc->find('foo:copy(//*)')->size() == 3);
 my ($foo)=$xc->findnodes('(//*)[2]');

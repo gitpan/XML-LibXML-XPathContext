@@ -1,5 +1,5 @@
 use Test;
-BEGIN { plan tests => 17 };
+BEGIN { plan tests => 21 };
 
 use XML::LibXML;
 use XML::LibXML::XPathContext;
@@ -64,3 +64,12 @@ XML
 my $xc3 = XML::LibXML::XPathContext->new($doc2->getDocumentElement);
 $xc3->find('/');
 ok($xc3->getContextNode->toString() eq '<foo><bar/></foo>');
+
+# check starting with empty context
+my $xc4 = XML::LibXML::XPathContext->new();
+ok(!defined($xc4->getContextNode));
+eval { $xc4->find('/') };
+ok($@);
+$xc4->setContextNode($doc2->getDocumentElement);
+ok($xc4->find('/'));
+ok($xc4->getContextNode->isSameNode($doc2->getDocumentElement));

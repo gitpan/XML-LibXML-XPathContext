@@ -1,4 +1,4 @@
-# $Id: XPathContext.pm,v 1.30 2003/09/22 08:02:56 m_ilya Exp $
+# $Id: XPathContext.pm,v 1.32 2003/11/10 10:09:12 m_ilya Exp $
 
 package XML::LibXML::XPathContext;
 
@@ -7,7 +7,7 @@ use vars qw($VERSION @ISA $USE_LIBXML_DATA_TYPES);
 
 use XML::LibXML::NodeList;
 
-$VERSION = '0.05';
+$VERSION = '0.06';
 require DynaLoader;
 
 @ISA = qw(DynaLoader);
@@ -55,15 +55,14 @@ sub _guarded_find_call {
         $prev_node = $self->getContextNode();
         $self->setContextNode($node);
     }
-    $self->_enter;
     my @ret;
     eval {
         @ret = $self->$method($xpath);
     };
-    $self->_leave;
+    $self->_free_node_pool;
     $self->setContextNode($prev_node) if ref($node);
 
-    if ($@) { die $@; }
+    if ($@) { die "ERROR: $@"; }
 
     return @ret;
 }
@@ -147,6 +146,11 @@ XML::LibXML::XPathContext - Perl interface to libxml2's xmlXPathContext
     my $node = $xc->getContextNode;
     $xc->setContextNode($node);
 
+    my $position = $xc->getContextPosition;
+    $xc->setContextPosition($position);
+    my $size = $xc->getContextSize;
+    $xc->setContextSize($size);
+
     $xc->registerNs($prefix, $namespace_uri);
     $xc->unregisterNs($prefix);
     my $namespace_uri = $xc->lookupNs($prefix);
@@ -158,6 +162,8 @@ XML::LibXML::XPathContext - Perl interface to libxml2's xmlXPathContext
 
     $xc->registerVarLookupFunc(sub { ... }, $data);
     $xc->unregisterVarLookupFunc($name);
+    $data = $xc->getVarLookupData();
+    $sub = $xc->getVarLookupFunc();
 
     my @nodes = $xc->findnodes($xpath);
     my @nodes = $xc->findnodes($xpath, $context_node);
@@ -190,6 +196,10 @@ defining XPath functions in Perl,
 =item 3
 
 defining variable lookup functions in Perl.
+
+=item 3
+
+cheating the context about current proximity position and context size
 
 =back
 
@@ -369,20 +379,49 @@ Get the current context node.
 
 Set the current context node.
 
+=item B<setContextPosition($position)>
+
+Set the current proximity position. By default, this value is -1 (and
+evaluating XPath function position() in the initial context raises an
+XPath error), but can be set to any value up to context size. This
+usually only serves to cheat the XPath engine to return given position
+when position() XPath function is called. Setting this value to -1
+restores the default behavior.
+
+=item B<getContextPosition()>
+
+Get the current proximity position.
+
+=item B<setContextSize($size)>
+
+Set the current size. By default, this value is -1 (and evaluating
+XPath function last() in the initial context raises an XPath error),
+but can be set to any non-negative value. This usually only serves to
+cheat the XPath engine to return the given value when last() XPath
+function is called. If context size is set to 0, position is
+automatically also set to 0. If context size is positive, position is
+automatically set to 1. Setting context size to -1 restores the
+default behavior.
+
+=item B<getContextPosition()>
+
+Get the current proximity position.
+
+=item B<setContextNode($node)>
+
+Set the current context node.
+
 =back
 
 =head1 BUGS AND CAVEATS
 
-XML::LibXML::XPathContext objects are not reentrant. It means you
-cannot register a Perl function with a XML::LibXML::XPathContext
-object if this Perl function uses itself the same
-XML::LibXML::XPathContext object internally.
-
-For example, the following code will not work:
-
-    my $xc = XML::LibXML::XPathContext->new($node);
-    $xc->registerFunction('func', sub { $xc->findvalue('1') });
-    my $result = $xc->findvalue('func()');
+From version 0.06, XML::LibXML::XPathContext objects B<are> reentrant,
+meaning that you can call methods of an XML::LibXML::XPathContext even
+from XPath extension functions registered with the same object or from
+a variable lookup function.  On the other hand, you should rather
+avoid registering new extension functions, namespaces and a variable
+lookup function from within extension functions and a variable lookup
+function, unless you want to experience untested behavior.
 
 =head1 AUTHORS
 

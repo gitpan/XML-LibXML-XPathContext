@@ -9,8 +9,6 @@ dom.c
 dom.h
 perl-libxml-mm.c
 perl-libxml-mm.h
-perl-libxml-sax.c
-perl-libxml-sax.h
 ppport.h
 t/00-xpathcontext.t
 t/01-variables.t

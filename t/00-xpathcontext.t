@@ -1,5 +1,5 @@
 use Test;
-BEGIN { plan tests => 30 };
+BEGIN { plan tests => 54 };
 
 use XML::LibXML;
 use XML::LibXML::XPathContext;
@@ -99,3 +99,46 @@ $xc5->getContextNode();
 $xc5->setContextNode($doc);
 $xc5->findnodes('/');
 ok(1);
+
+# check setting context position and size
+ok($xc4->getContextPosition() == -1);
+ok($xc4->getContextSize() == -1);
+eval { $xc4->setContextPosition(4); };
+ok($@);
+eval { $xc4->setContextPosition(-4); };
+ok($@);
+eval { $xc4->setContextSize(-4); };
+ok($@);
+eval { $xc4->findvalue('position()') };
+ok($@);
+eval { $xc4->findvalue('last()') };
+ok($@);
+
+$xc4->setContextSize(0);
+ok($xc4->getContextSize() == 0);
+ok($xc4->getContextPosition() == 0);
+ok($xc4->findvalue('position()')==0);
+ok($xc4->findvalue('last()')==0);
+
+$xc4->setContextSize(4);
+ok($xc4->getContextSize() == 4);
+ok($xc4->getContextPosition() == 1);
+ok($xc4->findvalue('last()')==4);
+ok($xc4->findvalue('position()')==1);
+eval { $xc4->setContextPosition(5); };
+ok($@);
+ok($xc4->findvalue('position()')==1);
+ok($xc4->getContextSize() == 4);
+$xc4->setContextPosition(4);
+ok($xc4->findvalue('position()')==4);
+ok($xc4->findvalue('position()=last()'));
+
+$xc4->setContextSize(-1);
+ok($xc4->getContextPosition() == -1);
+ok($xc4->getContextSize() == -1);
+eval { $xc4->findvalue('position()') };
+ok($@);
+eval { $xc4->findvalue('last()') };
+ok($@);
+
+

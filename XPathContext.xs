@@ -1,8 +1,9 @@
-/* $Id: XPathContext.xs,v 1.36 2003/09/21 10:05:05 m_ilya Exp $ */
+/* $Id: XPathContext.xs,v 1.41 2003/11/10 10:09:12 m_ilya Exp $ */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+#define PERL_NO_GET_CONTEXT     /* we want efficiency */
 
 /* perl stuff */
 #include "EXTERN.h"
@@ -25,7 +26,9 @@ extern "C" {
 
 static SV * xpc_LibXML_error    = NULL;
 
-#define xpc_LibXML_init_error() xpc_LibXML_error = NEWSV(0, 512); \
+/* NEWSV(0, 512); \ */
+#define xpc_LibXML_init_error() if (xpc_LibXML_error == NULL || !SvOK(xpc_LibXML_error)) \
+                            xpc_LibXML_error = NEWSV(0,512); \
                             sv_setpvn(xpc_LibXML_error, "", 0); \
                             xmlSetGenericErrorFunc( NULL ,  \
                                 (xmlGenericErrorFunc)xpc_LibXML_error_handler);
@@ -36,8 +39,9 @@ static SV * xpc_LibXML_error    = NULL;
 
 struct _XPathContextData {
     SV* node;
-    int lock; 
     HV* pool;  
+    SV* varLookup;
+    SV* varData;
 };
 typedef struct _XPathContextData XPathContextData;
 typedef XPathContextData* XPathContextDataPtr;
@@ -55,6 +59,7 @@ xpc_LibXML_error_handler(void * ctxt, const char * msg, ...)
 {
     va_list args;
     SV * sv;
+    dTHX;
     /* xmlParserCtxtPtr context = (xmlParserCtxtPtr) ctxt; */
     sv = NEWSV(0,512);
 
@@ -87,6 +92,7 @@ xpc_LibXML_XPathContext_pool ( xmlXPathContextPtr ctxt, int hashkey, SV * pnode 
     SV * pnode2;
     STRLEN len;
     char * strkey;
+    dTHX;
 
     if (XPathContextDATA(ctxt)->pool == NULL) {
         if (pnode == NULL) {
@@ -117,6 +123,7 @@ xpc_LibXML_XPathContext_pool ( xmlXPathContextPtr ctxt, int hashkey, SV * pnode 
 static xmlXPathObjectPtr
 xpc_LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
                               SV* perl_result) {
+    dTHX;
     if (!SvOK(perl_result)) {
         return (xmlXPathObjectPtr)xmlXPathNewCString("");        
     }
@@ -185,6 +192,62 @@ xpc_LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
 }
 
 
+/* save XPath context and XPathContextDATA for recursion */
+static xmlXPathContextPtr
+xpc_LibXML_save_context(xmlXPathContextPtr ctxt)
+{
+    xmlXPathContextPtr copy;
+    copy = xmlMalloc(sizeof(xmlXPathContext));
+    if (copy) {
+	/* backup ctxt */
+	memcpy(copy, ctxt, sizeof(xmlXPathContext));
+	/* clear namespaces so that they are not freed and overwritten
+	   by configure_namespaces */
+	ctxt->namespaces = NULL;
+	/* backup data */
+	XPathContextDATA(copy) = xmlMalloc(sizeof(XPathContextData));
+	if (XPathContextDATA(copy)) {
+	    memcpy(XPathContextDATA(copy), XPathContextDATA(ctxt),sizeof(XPathContextData));
+	    /* clear ctxt->pool, so that it is not used freed during re-entrance */
+	    XPathContextDATA(ctxt)->pool = NULL; 
+	}
+    }
+    return copy;
+}
+
+/* restore XPath context and XPathContextDATA from a saved copy */
+static void
+xpc_LibXML_restore_context(xmlXPathContextPtr ctxt, xmlXPathContextPtr copy)
+{
+    dTHX;
+    /* cleanup */
+    if (XPathContextDATA(ctxt)) {
+	/* cleanup newly created pool */
+	if (XPathContextDATA(ctxt)->pool != NULL &&
+	    SvOK(XPathContextDATA(ctxt)->pool)) {
+	    SvREFCNT_dec((SV *)XPathContextDATA(ctxt)->pool);
+	}
+    }
+    if (ctxt->namespaces) {
+	/* free namespaces allocated during recursion */
+        xmlFree( ctxt->namespaces );
+    }
+
+    /* restore context */
+    if (copy) {
+	/* 1st restore our data */
+	if (XPathContextDATA(copy)) {
+	    memcpy(XPathContextDATA(ctxt),XPathContextDATA(copy),sizeof(XPathContextData));
+	    xmlFree(XPathContextDATA(copy));
+	    XPathContextDATA(copy) = XPathContextDATA(ctxt);
+	}
+	/* now copy the rest */
+	memcpy(ctxt, copy, sizeof(xmlXPathContext));
+	xmlFree(copy);
+    }
+}
+
+
 /* ****************************************************************
  * Variable Lookup
  * **************************************************************** */
@@ -195,37 +258,41 @@ xpc_LibXML_generic_variable_lookup(void* varLookupData,
                                const xmlChar *ns_uri)
 {
     xmlXPathObjectPtr ret;
-    SV ** lookup_func;
-    SV ** lookup_data;
+    xmlXPathContextPtr ctxt;
+    xmlXPathContextPtr copy;
+    XPathContextDataPtr data;
     I32 count;
+    dTHX;
     dSP;
-    SV * data;
-    SV ** fetch;
 
-    data = (SV *) varLookupData;
-    if (varLookupData == NULL || !SvROK(data) ||
-        SvTYPE(SvRV(data)) != SVt_PVAV) {
-        croak("XPathContext: lost variable lookup data structure!");
-    }
-
-    lookup_func = av_fetch((AV *) SvRV(data),0,0 );
-    if ( lookup_func == NULL || !SvROK(*lookup_func) || SvTYPE(SvRV(*lookup_func)) != SVt_PVCV ) {
+    ctxt = (xmlXPathContextPtr) varLookupData;
+    if ( ctxt == NULL )
+	croak("XPathContext: missing xpath context");
+    data = XPathContextDATA(ctxt);
+    if ( data == NULL )
+	croak("XPathContext: missing xpath context private data");
+    if ( data->varLookup == NULL || !SvROK(data->varLookup) || 
+	 SvTYPE(SvRV(data->varLookup)) != SVt_PVCV )
         croak("XPathContext: lost variable lookup function!");
-    }
-    lookup_data = av_fetch((AV *) SvRV(data),1,0 );
 
     ENTER;
     SAVETMPS;
     PUSHMARK(SP);
 
-    XPUSHs( (lookup_data != NULL) ? *lookup_data : &PL_sv_undef ); 
+    XPUSHs( (data->varData != NULL) ? data->varData : &PL_sv_undef ); 
     XPUSHs(sv_2mortal(xpc_C2Sv(name,NULL))); 
     XPUSHs(sv_2mortal(xpc_C2Sv(ns_uri,NULL)));
+
+    /* save context to allow recursive usage of XPathContext */
+    copy = xpc_LibXML_save_context(ctxt);
+
     PUTBACK ;    
-
-    count = perl_call_sv(*lookup_func, G_SCALAR|G_EVAL);
-
+    count = perl_call_sv(data->varLookup, G_SCALAR|G_EVAL);
     SPAGAIN;
+
+    /* restore the xpath context */
+    xpc_LibXML_restore_context(ctxt, copy);
+
     if (SvTRUE(ERRSV)) {
         POPs;
         croak("XPathContext: error coming back from variable lookup function. %s", SvPV_nolen(ERRSV));
@@ -258,8 +325,10 @@ xpc_LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
     char *strkey;
     const char *function, *uri;
     SV **perl_function;
+    dTHX;
     dSP;
     SV * data;
+    xmlXPathContextPtr copy;
 
     /* warn("entered xpc_LibXML_generic_extension_function for %s\n",ctxt->context->function); */
     data = (SV *) ctxt->context->funcLookupData;
@@ -362,14 +431,18 @@ xpc_LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
         xmlXPathFreeObject(obj);
     }
 
+    /* save context to allow recursive usage of XPathContext */
+    copy = xpc_LibXML_save_context(ctxt->context);
+
     /* call perl dispatcher */
     PUTBACK;
-
     perl_dispatch = sv_2mortal(newSVpv("XML::LibXML::XPathContext::_perl_dispatcher",0));
-    count = perl_call_sv(perl_dispatch, G_SCALAR|G_EVAL);
-    
+    count = perl_call_sv(perl_dispatch, G_SCALAR|G_EVAL);    
     SPAGAIN;
 
+    /* restore the xpath context */
+    xpc_LibXML_restore_context(ctxt->context, copy);
+    
     if (SvTRUE(ERRSV)) {
         POPs;
         croak("XPathContext: error coming back from perl-dispatcher in pm file. %s", SvPV_nolen(ERRSV));
@@ -451,8 +524,9 @@ new( CLASS, ... )
           XPathContextDATA(ctxt)->node = &PL_sv_undef;
         }
 
-        XPathContextDATA(ctxt)->lock = 0;
         XPathContextDATA(ctxt)->pool = NULL;
+        XPathContextDATA(ctxt)->varLookup = NULL;
+        XPathContextDATA(ctxt)->varData = NULL;
 
         xmlXPathRegisterFunc(ctxt,
                              (const xmlChar *) "document",
@@ -478,6 +552,14 @@ DESTROY( self )
                     SvOK(XPathContextDATA(ctxt)->node)) {
                     SvREFCNT_dec(XPathContextDATA(ctxt)->node);
                 }
+                if (XPathContextDATA(ctxt)->varLookup != NULL &&
+                    SvOK(XPathContextDATA(ctxt)->varLookup)) {
+                    SvREFCNT_dec(XPathContextDATA(ctxt)->varLookup);
+                }
+                if (XPathContextDATA(ctxt)->varData != NULL &&
+                    SvOK(XPathContextDATA(ctxt)->varData)) {
+                    SvREFCNT_dec(XPathContextDATA(ctxt)->varData);
+                }
                 if (XPathContextDATA(ctxt)->pool != NULL &&
                     SvOK(XPathContextDATA(ctxt)->pool)) {
                     SvREFCNT_dec((SV *)XPathContextDATA(ctxt)->pool);
@@ -487,10 +569,6 @@ DESTROY( self )
 
             if (ctxt->namespaces != NULL) {
                 xmlFree( ctxt->namespaces );
-            }
-            if (ctxt->varLookupData != NULL && SvROK((SV*)ctxt->varLookupData)
-                && SvTYPE(SvRV((SV *)ctxt->varLookupData)) == SVt_PVAV) {
-                SvREFCNT_dec((SV *)ctxt->varLookupData);
             }
             if (ctxt->funcLookupData != NULL && SvROK((SV*)ctxt->funcLookupData)
                 && SvTYPE(SvRV((SV *)ctxt->funcLookupData)) == SVt_PVHV) {
@@ -517,6 +595,32 @@ getContextNode( self )
     OUTPUT:
         RETVAL
 
+int
+getContextPosition( self )
+        SV * self
+    INIT:
+        xmlXPathContextPtr ctxt = (xmlXPathContextPtr)SvIV(SvRV(self)); 
+        if ( ctxt == NULL ) {
+            croak("XPathContext: missing xpath context");
+        }
+    CODE:
+        RETVAL = ctxt->proximityPosition;
+    OUTPUT:
+	RETVAL
+
+int
+getContextSize( self )
+        SV * self
+    INIT:
+        xmlXPathContextPtr ctxt = (xmlXPathContextPtr)SvIV(SvRV(self)); 
+        if ( ctxt == NULL ) {
+            croak("XPathContext: missing xpath context");
+        }
+    CODE:
+        RETVAL = ctxt->contextSize;
+    OUTPUT:
+	RETVAL
+
 void 
 setContextNode( self , pnode )
         SV * self
@@ -535,6 +639,38 @@ setContextNode( self , pnode )
         } else {
             XPathContextDATA(ctxt)->node = NULL;
         }
+
+void 
+setContextPosition( self , position )
+        SV * self
+        int position
+    INIT:
+        xmlXPathContextPtr ctxt = (xmlXPathContextPtr)SvIV(SvRV(self)); 
+        if ( ctxt == NULL )
+            croak("XPathContext: missing xpath context");
+        if ( position < -1 || position > ctxt->contextSize )
+	    croak("XPathContext: invalid position");
+    PPCODE:
+        ctxt->proximityPosition = position;
+
+void 
+setContextSize( self , size )
+        SV * self
+        int size
+    INIT:
+        xmlXPathContextPtr ctxt = (xmlXPathContextPtr)SvIV(SvRV(self)); 
+        if ( ctxt == NULL )
+            croak("XPathContext: missing xpath context");
+        if ( size < -1 )
+	    croak("XPathContext: invalid size");
+    PPCODE:
+        ctxt->contextSize = size;
+        if ( size == 0 )
+	    ctxt->proximityPosition = 0;
+	else if ( size > 0 )
+	    ctxt->proximityPosition = 1;
+        else 
+	    ctxt->proximityPosition = -1;
 
 void
 registerNs( pxpath_context, prefix, ns_uri )
@@ -583,23 +719,30 @@ SV*
 getVarLookupData( self )
         SV * self
     INIT:
-        SV ** lookup_data;
         xmlXPathContextPtr ctxt = (xmlXPathContextPtr)SvIV(SvRV(self)); 
         if ( ctxt == NULL ) {
             croak("XPathContext: missing xpath context");
         }
-        xpc_LibXML_configure_xpathcontext(ctxt);
     CODE:
-        if (ctxt->varLookupData != NULL &&
-            SvROK((SV*)(ctxt->varLookupData)) &&
-            SvTYPE(SvRV((SV*)(ctxt->varLookupData))) == SVt_PVAV) {
-            lookup_data = av_fetch((AV *) SvRV((SV*)(ctxt->varLookupData)),1,0);
-            if (lookup_data != NULL) {
-                SvREFCNT_inc(*lookup_data);
-                RETVAL = *lookup_data;
-            } else {
-                RETVAL = &PL_sv_undef;
-            }
+        if(XPathContextDATA(ctxt)->varData != NULL) {
+            RETVAL = newSVsv(XPathContextDATA(ctxt)->varData);
+        } else {
+            RETVAL = &PL_sv_undef;
+        }
+    OUTPUT:
+        RETVAL
+
+SV*
+getVarLookupFunc( self )
+        SV * self
+    INIT:
+        xmlXPathContextPtr ctxt = (xmlXPathContextPtr)SvIV(SvRV(self)); 
+        if ( ctxt == NULL ) {
+            croak("XPathContext: missing xpath context");
+        }
+    CODE:
+        if(XPathContextDATA(ctxt)->varData != NULL) {
+            RETVAL = newSVsv(XPathContextDATA(ctxt)->varLookup);
         } else {
             RETVAL = &PL_sv_undef;
         }
@@ -613,38 +756,37 @@ registerVarLookupFunc( pxpath_context, lookup_func, lookup_data )
         SV * lookup_data
     PREINIT:
         xmlXPathContextPtr ctxt = NULL;
+        XPathContextDataPtr data = NULL;
         SV* pfdr;
     INIT:
         ctxt = (xmlXPathContextPtr)SvIV(SvRV(pxpath_context));
-        if ( ctxt == NULL ) {
+        if ( ctxt == NULL )
             croak("XPathContext: missing xpath context");
-        }
+        data = XPathContextDATA(ctxt);
+        if ( data == NULL )
+            croak("XPathContext: missing xpath context private data");
         xpc_LibXML_configure_xpathcontext(ctxt);
+        /* free previous lookup function and data */
+        if (data->varLookup && SvOK(data->varLookup))
+            SvREFCNT_dec(data->varLookup);
+        if (data->varData && SvOK(data->varData))
+            SvREFCNT_dec(data->varData);
+        data->varLookup=NULL;
+        data->varData=NULL;
+    PPCODE:
         if (SvOK(lookup_func)) {
             if ( SvROK(lookup_func) && SvTYPE(SvRV(lookup_func)) == SVt_PVCV ) {
-                pfdr = newRV_inc((SV*) newAV());
-                av_push((AV *)SvRV(pfdr), newSVsv(lookup_func));
-                av_push((AV *)SvRV(pfdr), newSVsv(lookup_data));
+		data->varLookup = newSVsv(lookup_func);
+		if (SvOK(lookup_data)) 
+		    data->varData = newSVsv(lookup_data);
+		xmlXPathRegisterVariableLookup(ctxt, 
+					       xpc_LibXML_generic_variable_lookup, ctxt);
+		if (ctxt->varLookupData==NULL || ctxt->varLookupData != ctxt) {
+		    croak( "XPathContext: registration failure" );
+		}    
             } else {
                 croak("XPathContext: 1st argument is not a CODE reference");
             }
-        }
-        if (ctxt->varLookupData != NULL) {
-            /* free previous lookup data */
-            if (SvTYPE(SvRV((SV *)ctxt->varLookupData)) == SVt_PVAV) {
-                SvREFCNT_dec((SV *)ctxt->varLookupData);
-                ctxt->varLookupData = NULL;
-                ctxt->varLookupFunc = NULL;
-            } else {
-                croak("XPathContext: cannot register: varLookupData slot already occupied");
-            }
-        }
-    PPCODE:
-        if (SvOK(lookup_func)) {
-            xmlXPathRegisterVariableLookup(ctxt, xpc_LibXML_generic_variable_lookup, pfdr);
-            if (ctxt->varLookupData==NULL || ctxt->varLookupData != pfdr) {
-                croak( "XPathContext: registration failure" );
-            }    
         } else {
             /* unregister */
             xmlXPathRegisterVariableLookup(ctxt, NULL, NULL);
@@ -720,7 +862,7 @@ registerFunctionNS( pxpath_context, name, uri, func)
         }
 
 void
-_enter( pxpath_context )
+_free_node_pool( pxpath_context )
         SV * pxpath_context
     PREINIT:
         xmlXPathContextPtr ctxt = NULL;
@@ -730,23 +872,6 @@ _enter( pxpath_context )
             croak("XPathContext: missing xpath context");
         }
     PPCODE:
-        if ( XPathContextDATA(ctxt)->lock != 0 ) {
-            croak("XPathContext: context is locked");
-        }
-        XPathContextDATA(ctxt)->lock=1;
-
-void
-_leave( pxpath_context )
-        SV * pxpath_context
-    PREINIT:
-        xmlXPathContextPtr ctxt = NULL;
-    INIT:
-        ctxt = (xmlXPathContextPtr)SvIV(SvRV(pxpath_context));
-        if ( ctxt == NULL ) {
-            croak("XPathContext: missing xpath context");
-        }
-    PPCODE:
-        XPathContextDATA(ctxt)->lock=0;
         if (XPathContextDATA(ctxt)->pool != NULL) {
             SvREFCNT_dec((SV *)XPathContextDATA(ctxt)->pool);
             XPathContextDATA(ctxt)->pool = NULL;
@@ -801,7 +926,6 @@ _findnodes( pxpath_context, perl_xpath )
         }
         xmlFree(xpath);
 
-        sv_2mortal( xpc_LibXML_error );
         xpc_LibXML_croak_error();
 
         if ( nodelist ) {
@@ -896,7 +1020,6 @@ _find( pxpath_context, pxpath )
 
         xmlFree( xpath );
 
-        sv_2mortal( xpc_LibXML_error );
         xpc_LibXML_croak_error();
 
         if (found) {

@@ -1,6 +1,22 @@
-$Id: Changes,v 1.12 2003/09/22 08:02:26 m_ilya Exp $
+$Id: Changes,v 1.14 2003/11/10 10:10:25 m_ilya Exp $
 
 Revision history for Perl module XML::LibXML::XPathContext.
+
+0.06 Mon Nov 10 2003
+
+* simplified variable lookup code to use a C structure instead of
+  a perl AV*
+
+* made XPathContext reentrant (by saving the state before
+  a callback and restoring it afterwards).
+
+* added get/setContextSize, get/setContextPosition
+
+* added getVarLookupFunc
+
+* added some tests and documentation for the new features
+
+* applied last LibXML patch for perl-libxml-mm.c
 
 0.05 Mon Sep 22 2003
 

@@ -1,6 +1,6 @@
 # -*- cperl -*-
 use Test;
-BEGIN { plan tests => 33 };
+BEGIN { plan tests => 35 };
 
 use XML::LibXML;
 use XML::LibXML::XPathContext;
@@ -51,6 +51,7 @@ my $h1=$xc->getVarLookupData;
 my $h2=\%variables;
 ok("$h1" eq "$h2" );
 ok($h1 eq $xc->getVarLookupData);
+ok(\&get_variable eq $xc->getVarLookupFunc);
 
 # test values returned by XPath queries
 ok($xc->find('$a') == 2);
@@ -76,6 +77,7 @@ ok($xc->findnodes('$g')->pop->isSameNode($variables{g}));
 $xc->unregisterVarLookupFunc();
 eval { $xc->find('$a') };
 ok($@);
+ok(!defined($xc->getVarLookupFunc()));
 
 my $foo='foo';
 $xc->registerVarLookupFunc(sub {},$foo);

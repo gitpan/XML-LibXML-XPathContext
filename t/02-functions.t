@@ -1,6 +1,6 @@
 # -*- cperl -*-
 use Test;
-BEGIN { plan tests => 28 };
+BEGIN { plan tests => 32 };
 
 use XML::LibXML;
 use XML::LibXML::XPathContext;
@@ -67,17 +67,19 @@ $xc->unregisterFunctionNS('copy','urn:foo');
 eval { $xc->findvalue('foo:copy("bar")') };
 ok ($@);
 
-# test context locking mechanism
-$xc->registerFunction('test-lock1', sub { $xc->find('1') });
-$xc->registerFunction('test-lock2', sub { $xc->findnodes('1') });
-eval { $xc->find('test-lock1()') };
-ok($@);
-eval { $xc->findnodes('test-lock1()') };
-ok($@);
-eval { $xc->find('test-lock2()') };
-ok($@);
-eval { $xc->findnodes('test-lock2()') };
-ok($@);
+# test context reentrance
+$xc->registerFunction('test-lock1', sub { $xc->find('string(//node())') });
+$xc->registerFunction('test-lock2', sub { $xc->findnodes('//bar') });
+ok($xc->find('test-lock1()') eq $xc->find('string(//node())'));
+ok($xc->find('count(//bar)=2'));
+ok($xc->find('count(test-lock2())=count(//bar)'));
+ok($xc->find('count(test-lock2()|//bar)=count(//bar)'));
+ok($xc->findnodes('test-lock2()[2]')->pop()->isSameNode($xc->findnodes('//bar[2]')));
+
+$xc->registerFunction('test-lock3', sub { $xc->findnodes('test-lock2(//bar)') });
+ok($xc->find('count(test-lock2())=count(test-lock3())'));
+ok($xc->find('count(test-lock3())=count(//bar)'));
+ok($xc->find('count(test-lock3()|//bar)=count(//bar)'));
 
 # function creating new nodes
 $xc->registerFunction('new-foo',

@@ -1,5 +1,5 @@
 use Test;
-BEGIN { plan tests => 21 };
+BEGIN { plan tests => 27 };
 
 use XML::LibXML;
 use XML::LibXML::XPathContext;
@@ -70,6 +70,18 @@ my $xc4 = XML::LibXML::XPathContext->new();
 ok(!defined($xc4->getContextNode));
 eval { $xc4->find('/') };
 ok($@);
-$xc4->setContextNode($doc2->getDocumentElement);
+my $cn=$doc2->getDocumentElement;
+$xc4->setContextNode($cn);
 ok($xc4->find('/'));
+ok($xc4->getContextNode->isSameNode($doc2->getDocumentElement));
+$cn=undef;
+ok($xc4->getContextNode);
+ok($xc4->getContextNode->isSameNode($doc2->getDocumentElement));
+
+# check temporarily changed context node
+my ($bar)=$xc4->findnodes('foo/bar',$doc2);
+ok($bar->nodeName eq 'bar');
+ok($xc4->getContextNode->isSameNode($doc2->getDocumentElement));
+
+ok($xc4->findnodes('parent::*',$bar)->pop->nodeName eq 'foo');
 ok($xc4->getContextNode->isSameNode($doc2->getDocumentElement));

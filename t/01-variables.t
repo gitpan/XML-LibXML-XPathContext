@@ -1,6 +1,6 @@
 # -*- cperl -*-
 use Test;
-BEGIN { plan tests => 31 };
+BEGIN { plan tests => 33 };
 
 use XML::LibXML;
 use XML::LibXML::XPathContext;
@@ -76,3 +76,10 @@ ok($xc->findnodes('$g')->pop->isSameNode($variables{g}));
 $xc->unregisterVarLookupFunc();
 eval { $xc->find('$a') };
 ok($@);
+
+my $foo='foo';
+$xc->registerVarLookupFunc(sub {},$foo);
+ok($xc->getVarLookupData eq 'foo');
+$foo=undef;
+ok($xc->getVarLookupData eq 'foo');
+

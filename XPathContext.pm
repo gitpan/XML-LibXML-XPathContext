@@ -1,4 +1,4 @@
-# $Id: XPathContext.pm,v 1.20 2003/04/04 09:08:46 m_ilya Exp $
+# $Id: XPathContext.pm,v 1.23 2003/04/30 20:31:46 m_ilya Exp $
 
 package XML::LibXML::XPathContext;
 
@@ -7,7 +7,7 @@ use vars qw($VERSION @ISA $USE_LIBXML_DATA_TYPES);
 
 use XML::LibXML::NodeList;
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 require DynaLoader;
 
 @ISA = qw(DynaLoader);
@@ -19,13 +19,20 @@ bootstrap XML::LibXML::XPathContext $VERSION;
 $USE_LIBXML_DATA_TYPES = 0;
 
 sub findnodes {
-    my ($self, $xpath) = @_;
+    my ($self, $xpath, $node) = @_;
     my @nodes;
+    my $prev_node;
+    if (ref($node)) {
+      $prev_node=$self->getContextNode();
+      $self->setContextNode($node);
+    }
     $self->_enter;
     eval {
       @nodes = $self->_findnodes($xpath);
     };
     $self->_leave;
+    $self->setContextNode($prev_node) if ref($node);
+
     if ($@) { die $@; }
 
     if (wantarray) {
@@ -37,19 +44,26 @@ sub findnodes {
 }
 
 sub findvalue {
-    my ($self, $xpath) = @_;
-    return $self->find($xpath)->to_literal->value;
+    my $self = shift;
+    return $self->find(@_)->to_literal->value;
 }
 
 sub find {
-    my ($self, $xpath) = @_;
+    my ($self, $xpath, $node) = @_;
     my ($type, @params);
 
+    my $prev_node;
+    if (ref($node)) {
+      $prev_node=$self->getContextNode();
+      $self->setContextNode($node);
+    }
     $self->_enter;
     eval {
       ($type, @params) = $self->_find($xpath);
     };
     $self->_leave;
+    $self->setContextNode($prev_node) if ref($node);
+
     if  ($@) { die $@; }
 
     if ($type) {
@@ -148,9 +162,13 @@ XML::LibXML::XPathContext - Perl interface to libxml2's xmlXPathContext
     $xc->unregisterVarLookupFunc($name);
 
     my @nodes = $xc->findnodes($xpath);
+    my @nodes = $xc->findnodes($xpath, $context_node);
     my $nodelist = $xc->findnodes($xpath);
+    my $nodelist = $xc->findnodes($xpath, $context_node);
     my $result = $xc->find($xpath);
+    my $result = $xc->find($xpath, $context_node);
     my $value = $xc->findvalue($xpath);
+    my $value = $xc->findvalue($xpath, $context_node);
 
 =head1 DESCRIPTION
 
@@ -231,7 +249,7 @@ This example demonstrates I<registerVarLookup()> usage:
       );
 
     # get names of employees from $A woring in an area listed in $B
-    $xc->registerVarLookupFunc(\&var_lookup,\%results);
+    $xc->registerVarLookupFunc(\&var_lookup, \%results);
     my @nodes = $xc->findnodes('$A[work_area/street = $B]/name');
 
 =head1 METHODS
@@ -305,13 +323,15 @@ Same as I<registerFunctionNS> but without a namespace.
 
 Same as I<unregisterFunctionNS> but without a namespace.
 
-=item B<findnodes($xpath)>
+=item B<findnodes($xpath, [ $context_node ])>
 
 Performs the xpath statement on the current node and returns the
 result as an array. In scalar context returns a
-L<XML::LibXML::NodeList|XML::LibXML::NodeList> object.
+L<XML::LibXML::NodeList|XML::LibXML::NodeList> object. Optionally, a
+node may be passed as a second argument to set the context node for
+the query.
 
-=item B<find($xpath)>
+=item B<find($xpath, [ $context_node ])>
 
 Performs the xpath expression using the current node as the context of
 the expression, and returns the result depending on what type of
@@ -321,9 +341,11 @@ returned. Other expressions might return a
 L<XML::LibXML::Boolean|XML::LibXML::Boolean> object, or a
 L<XML::LibXML::Literal|XML::LibXML::Literal> object (a string). Each
 of those objects uses Perl's overload feature to "do the right thing"
-in different contexts.
+in different contexts. Optionally, a node may be passed as a second
+argument to set the context node for the query.
 
-=item B<findvalue($xpath)>
+
+=item B<findvalue($xpath, [ $context_node ])>
 
 Is exactly equivalent to:
 
@@ -332,7 +354,8 @@ Is exactly equivalent to:
 That is, it returns the literal value of the results.  This enables
 you to ensure that you get a string back from your search, allowing
 certain shortcuts. This could be used as the equivalent of
-<xsl:value-of select="some_xpath"/>.
+<xsl:value-of select="some_xpath"/>. Optionally, a node may be passed
+in the second argument to set the context node for the query.
 
 =item B<getContextNode()>
 

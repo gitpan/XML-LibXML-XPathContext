@@ -1,6 +1,15 @@
-$Id: Changes,v 1.4 2003/04/04 09:05:47 m_ilya Exp $
+$Id: Changes,v 1.8 2003/04/30 20:24:24 m_ilya Exp $
 
 Revision history for Perl module XML::LibXML::XPathContext.
+
+0.03 Thu May  1 2003
+
+* added optional $context_node argument to findnodes(), find(), and
+findvalue() to simplify temporarily setting the context node.
+
+* fixed bugs in new(), setContextNode(), and register* causing loosing
+stored context data passed from a variable if the variable itself gets
+changed
 
 0.02 Fri Apr  4 2003
 

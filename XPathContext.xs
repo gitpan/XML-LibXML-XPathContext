@@ -1,4 +1,4 @@
-/* $Id: XPathContext.xs,v 1.29 2003/04/04 09:08:47 m_ilya Exp $ */
+/* $Id: XPathContext.xs,v 1.31 2003/04/04 18:42:59 pajas Exp $ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -441,9 +441,9 @@ new( CLASS, ... )
         SV * pnode = &PL_sv_undef;
     INIT:
         xmlXPathContextPtr ctxt;
-    CODE:	
- 	if( items > 1 )
- 	  pnode = ST(1);
+    CODE:
+        if( items > 1 )
+            pnode = ST(1);
 
         ctxt = xmlXPathNewContext( NULL );
         New(0, ctxt->user, sizeof(XPathContextData), XPathContextData);
@@ -451,9 +451,12 @@ new( CLASS, ... )
             croak("XPathContext: failed to allocate proxy object");
         } 
 
-	if (SvOK(pnode)) {
-          XPathContextDATA(ctxt)->node = SvREFCNT_inc(pnode);
+        if (SvOK(pnode)) {
+          XPathContextDATA(ctxt)->node = newSVsv(pnode); 
+        } else {
+          XPathContextDATA(ctxt)->node = &PL_sv_undef;
         }
+
         XPathContextDATA(ctxt)->lock = 0;
         XPathContextDATA(ctxt)->pool = NULL;
 
@@ -478,7 +481,7 @@ DESTROY( self )
         if (ctxt) {
             if (XPathContextDATA(ctxt) != NULL) {
                 if (XPathContextDATA(ctxt)->node != NULL &&
-	            SvOK(XPathContextDATA(ctxt)->node)) {
+                    SvOK(XPathContextDATA(ctxt)->node)) {
                     SvREFCNT_dec(XPathContextDATA(ctxt)->node);
                 }
                 if (XPathContextDATA(ctxt)->pool != NULL &&
@@ -537,9 +540,10 @@ setContextNode( self , pnode )
         if (XPathContextDATA(ctxt)->node && SvOK(XPathContextDATA(ctxt)->node)) {
             SvREFCNT_dec(XPathContextDATA(ctxt)->node);
         }
-        XPathContextDATA(ctxt)->node = pnode;
         if (SvOK(pnode)) {
-          SvREFCNT_inc(pnode);
+          XPathContextDATA(ctxt)->node = newSVsv(pnode);
+        } else {
+          XPathContextDATA(ctxt)->node = &PL_sv_undef;
         }
 
 void
@@ -615,8 +619,8 @@ registerVarLookupFunc( pxpath_context, lookup_func, lookup_data )
         if (SvOK(lookup_func)) {
             if ( SvROK(lookup_func) && SvTYPE(SvRV(lookup_func)) == SVt_PVCV ) {
                 pfdr = newRV_inc((SV*) newAV());
-                av_push((AV *)SvRV(pfdr), SvREFCNT_inc(lookup_func));
-                av_push((AV *)SvRV(pfdr), SvREFCNT_inc(lookup_data));
+                av_push((AV *)SvRV(pfdr), newSVsv(lookup_func));
+                av_push((AV *)SvRV(pfdr), newSVsv(lookup_data));
             } else {
                 croak("XPathContext: 1st argument is not a CODE reference");
             }
@@ -691,7 +695,7 @@ registerFunctionNS( pxpath_context, name, uri, func)
             strkey = SvPV(key, len);
             /* warn("Trying to store function '%s' in %d\n", strkey, pfdr); */
             if (SvOK(func)) {
-                hv_store((HV *)SvRV(pfdr),strkey, len, SvREFCNT_inc(func), 0);
+                hv_store((HV *)SvRV(pfdr),strkey, len, newSVsv(func), 0);
             } else {
                 /* unregister */
                 hv_delete((HV *)SvRV(pfdr),strkey, len, G_DISCARD);

@@ -1,0 +1,205 @@
+NAME
+    XML::LibXML::XPathContext - Perl interface to libxml2's xmlXPathContext
+
+SYNOPSIS
+        use XML::LibXML::XPathContext;
+
+        my $xc = XML::LibXML::XPathContext->new($node);
+
+        $xc->registerNs($prefix, $namespace_uri);
+        $xc->registerFunction($name, sub { ... });
+        $xc->registerFunctionNS($name, $namespace_uri, sub { ... });
+        $xc->registerVarLookupFunc(sub { ... }, $data);
+
+        $xc->unregisterNs($prefix);
+        $xc->unregisterFunction($name);
+        $xc->unregisterFunctionNS($name, $namespace_uri);
+        $xc->unregisterVarLookupFunc($name);
+
+        my @nodes = $xc->findnodes($xpath);
+        my $nodelist = $xc->findnodes($xpath);
+        my $result = $xc->find($xpath);
+        my $value = $xc->findvalue($xpath);
+
+        my $node = $xc->getContextNode;
+        $xc->setContextNode($node);
+
+DESCRIPTION
+    This module augments XML::LibXML by providing Perl interface to
+    libxml2's xmlXPathContext structure. Besides just performing xpath
+    statements on XML::LibXML's node trees it allows redefining certaint
+    aspects of XPath engine. This modules allows
+
+    1   registering namespace prefixes,
+
+    2   defining XPath functions in Perl,
+
+    3   defining variable lookup functions in Perl.
+
+EXAMPLES
+  Find all paragraph nodes in XHTML document
+    This example demonstrates *registerNs()* usage:
+
+        my $xc = XML::LibXML::XPathContext->new($xhtml_doc);
+        $xc->registerNs('xhtml', 'http://www.w3.org/1999/xhtml');
+        my @nodes = $xc->findnodes('//xhtml:p');
+
+  Find all nodes whose names match a Perl regular expression
+    This example demonstrates *registerFunction()* usage:
+
+        my $perlmatch = sub {
+            die "Not a nodelist"
+                unless $_[0]->isa('XML::LibXML::NodeList');
+            die "Missing a regular expression"
+                unless defined $_[1];
+
+            my $nodelist = XML::LibXML::NodeList->new;
+            my $i = 0;
+            while(my $node = $_[0]->get_node($i)) {
+                $nodelist->push($node) if $node->nodeName =~ $_[1];
+                $i ++;
+            }
+
+            return $nodelist;
+        };
+
+        my $xc = XML::LibXML::XPathContext->new($node);
+        $xc->registerFunction('perlmatch', $perlmatch);
+        my @nodes = $xc->findnodes('perlmatch(//*, "foo|bar")');
+
+  Use XPath variables to recycle results of previous evaluations
+    This example demonstrates *registerVarLookup()* usage:
+
+        sub var_lookup {
+          my ($varname,$ns,$data)=@_;
+          return $data->{$varname};
+        }
+
+        my $areas = XML::LibXML->new->parse_file('areas.xml');
+        my $empl = XML::LibXML->new->parse_file('employees.xml');
+
+        my $xc = XML::LibXML::XPathContext->new($empl);
+
+        my %results =
+          (
+           A => $xc->find('/employees/employee[@salary>10000]'),
+           B => $areas->find('/areas/area[district='Brooklyn']/street'),
+          );
+
+        # get names of employees from $A woring in an area listed in $B
+        $xc->registerVarLookupFunc(\&var_lookup,\%results);
+        my @nodes = $xc->findnodes('$A[work_area/street = $B]/name');
+
+METHODS
+    new($node)
+        Creates a new XML::LibXML::XPathContext object with current node set
+        to *$node*.
+
+    registerNs($prefix, $namespace_uri)
+        Registers namespace *$prefix* to *$namespace_uri*.
+
+    unregisterNs($prefix)
+        Unregisters namespace *$prefix*.
+
+    registerVarLookupFunc($callback, $data)
+        Registers variable lookup function *$prefix*. The registered
+        function is executed by the XPath engine each time an XPath variable
+        is evaluated. It takes three arguments: *$data*, variable name, and
+        variable ns-URI and must return one value: a number or string or any
+        XML::LibXML object that can be a result of findnodes: Boolean,
+        Literal, Number, Node (e.g. Document, Element, etc.), or NodeList.
+        For convenience, simple (non-blessed) array references containing
+        only XML::LibXML::Node objects can be used instead of a
+        XML::LibXML::NodeList.
+
+    getVarLookupData()
+        Returns the data that have been associated with a variable lookup
+        function during a previous call to *registerVarLookupFunc*.
+
+    unregisterVarLookupFunc()
+        Unregisters variable lookup function and the associated lookup data.
+
+    registerFunctionNS($name, $uri, $callback)
+        Registers an extension function *$name* in *$uri* namespace.
+        *$callback* must be a CODE reference. The arguments of the callback
+        function are either simple scalars or XML::LibXML::NodeList objects
+        depending on the XPath argument types. The function is responsible
+        for checking the argument number and types. Result of the callback
+        code must be a single value of the following types: a simple scalar
+        (number,string) or an arbitrary XML::LibXML object that can be a
+        result of findnodes: Boolean, Literal, Number, Node (e.g. Document,
+        Element, etc.), or NodeList. For convenience, simple (non-blessed)
+        array references containing only XML::LibXML::Node objects can be
+        used instead of a XML::LibXML::NodeList.
+
+    unregisterFunctionNS($name, $uri)
+        Unregisters extension function *$name* in *$uri* namespace. Has the
+        same effect as passing "undef" as *$callback* to registerFunctionNS.
+
+    registerFunction($name, $callback)
+        Same as *registerFunctionNS* but without a namespace.
+
+    unregisterFunction($name)
+        Same as *unregisterFunctionNS* but without a namespace.
+
+    findnodes($xpath)
+        Performs the xpath statement on the current node and returns the
+        result as an array. In scalar context returns a
+        XML::LibXML::NodeList object.
+
+    find($xpath)
+        Performs the xpath expression using the current node as the context
+        of the expression, and returns the result depending on what type of
+        result the XPath expression had. For example, the XPath "1 * 3 + 52"
+        results in a XML::LibXML::Number object being returned. Other
+        expressions might return a XML::LibXML::Boolean object, or a
+        XML::LibXML::Literal object (a string). Each of those objects uses
+        Perl's overload feature to "do the right thing" in different
+        contexts.
+
+    findvalue($xpath)
+        Is exactly equivalent to:
+
+            $node->find( $xpath )->to_literal;
+
+        That is, it returns the literal value of the results. This enables
+        you to ensure that you get a string back from your search, allowing
+        certain shortcuts. This could be used as the equivalent of
+        <xsl:value-of select="some_xpath"/>.
+
+    getContextNode()
+        Get the current context node.
+
+    setContextNode($node)
+        Set the current context node.
+
+BUGS AND CAVEATS
+    XML::LibXML::XPathContext objects are not reentrant. It means you cannot
+    register a Perl function with a XML::LibXML::XPathContext object if this
+    Perl function uses itself the same XML::LibXML::XPathContext object
+    internally.
+
+    For example, the following code will not work:
+
+        my $xc = XML::LibXML::XPathContext->new($node);
+        $xc->registerFunction('func', sub { $xc->findvalue('1') });
+        my $result = $xc->findvalue('func()');
+
+AUTHORS
+    Based on XML::LibXML and XML::XSLT code by Matt Sergeant and Christian
+    Glahn.
+
+    Maintained by Ilya Martynov and Petr Pajas.
+
+    Copyright 2001-2003 AxKit.com Ltd, All rights reserved.
+
+SUPPORT
+    For suggestions, bugreports etc. you may contact the maintainers
+    directly (ilya@martynov.org and pajas@ufal.ms.mff.cuni.cz)
+
+    XML::LibXML::XPathContext issues can be discussed among other things on
+    the perl XML mailing list (perl-xml@listserv.ActiveState.com).
+
+SEE ALSO
+    XML::LibXML, XML::XSLT
+

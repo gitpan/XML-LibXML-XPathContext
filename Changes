@@ -1,0 +1,7 @@
+$Id: Changes,v 1.1 2003/03/26 21:20:45 m_ilya Exp $
+
+Revision history for Perl module XML::LibXML::XPathContext.
+
+0.01 Thu Mar 27 2003
+
+* First version based on XML::LibXML and XML::XSLT code.

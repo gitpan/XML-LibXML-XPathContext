@@ -1,5 +1,5 @@
 /* dom.h
- * $Id: dom.h,v 1.1.1.1 2003/03/14 14:32:04 m_ilya Exp $
+ * $Id: dom.h,v 1.2 2003/05/20 15:25:50 pajas Exp $
  * Author: Christian Glahn (2001)
  * 
  * This header file provides some definitions for wrapper functions.
@@ -31,10 +31,10 @@
 
 
 /**
- * NAME domParseChar
+ * NAME xpc_domParseChar
  * TYPE function
  * SYNOPSIS
- *   int utf8char = domParseChar( curchar, &len );
+ *   int utf8char = xpc_domParseChar( curchar, &len );
  *
  * The current char value, if using UTF-8 this may actually span
  * multiple bytes in the given string. This function parses an utf8
@@ -50,7 +50,7 @@
  * 2) not all perl versions XML::LibXML intends to run with have native
  *    UTF8 support.
  *
- * domParseChar() allows to use the very same code with all versions
+ * xpc_domParseChar() allows to use the very same code with all versions
  * of perl :)
  *
  * Returns the current char value and its length
@@ -60,19 +60,19 @@
  * character is -1!
  */
 int
-domParseChar( xmlChar *characters, int *len );
+xpc_domParseChar( xmlChar *characters, int *len );
 
 xmlNodePtr 
-domReadWellBalancedString( xmlDocPtr doc, xmlChar* string, int repair );
+xpc_domReadWellBalancedString( xmlDocPtr doc, xmlChar* string, int repair );
 
 /**
- * NAME domIsParent
+ * NAME xpc_domIsParent
  * TYPE function
  *
  * tests if a node is an ancestor of another node
  *
  * SYNOPSIS
- * if ( domIsParent(cur, ref) ) ...
+ * if ( xpc_domIsParent(cur, ref) ) ...
  * 
  * this function is very useful to resolve if an operation would cause 
  * circular references.
@@ -80,46 +80,46 @@ domReadWellBalancedString( xmlDocPtr doc, xmlChar* string, int repair );
  * the function returns 1 if the ref node is a parent of the cur node.
  */
 int
-domIsParent( xmlNodePtr cur, xmlNodePtr ref );
+xpc_domIsParent( xmlNodePtr cur, xmlNodePtr ref );
 
 /**
- * NAME domTestHierarchy
+ * NAME xpc_domTestHierarchy
  * TYPE function
  *
  * tests the general hierachy error
  *
  * SYNOPSIS
- * if ( domTestHierarchy(cur, ref) ) ...
+ * if ( xpc_domTestHierarchy(cur, ref) ) ...
  *
  * this function tests the general hierarchy error.   
  * it tests if the ref node would cause any hierarchical error for 
- * cur node. the function evaluates domIsParent() internally.
+ * cur node. the function evaluates xpc_domIsParent() internally.
  * 
  * the function will retrun 1 if there is no hierarchical error found. 
  * otherwise it returns 0.
  */ 
 int
-domTestHierarchy( xmlNodePtr cur, xmlNodePtr ref );
+xpc_domTestHierarchy( xmlNodePtr cur, xmlNodePtr ref );
 
 /**
-* NAME domTestDocument
+* NAME xpc_domTestDocument
 * TYPE function
 * SYNOPSIS
-* if ( domTestDocument(cur, ref) )...
+* if ( xpc_domTestDocument(cur, ref) )...
 *
-* this function extends the domTestHierarchy() function. It tests if the
+* this function extends the xpc_domTestHierarchy() function. It tests if the
 * cur node is a document and if so, it will check if the ref node can be
 * inserted. (e.g. Attribute or Element nodes must not be appended to a
 * document node)
 */
 int
-domTestDocument( xmlNodePtr cur, xmlNodePtr ref );
+xpc_domTestDocument( xmlNodePtr cur, xmlNodePtr ref );
 
 /**
-* NAME domAddNodeToList
+* NAME xpc_domAddNodeToList
 * TYPE function
 * SYNOPSIS
-* domAddNodeToList( cur, prevNode, nextNode )
+* xpc_domAddNodeToList( cur, prevNode, nextNode )
 *
 * This function inserts a node between the two nodes prevNode 
 * and nextNode. prevNode and nextNode MUST be adjacent nodes,
@@ -145,7 +145,7 @@ domTestDocument( xmlNodePtr cur, xmlNodePtr ref );
 * the list. otherwise the function returns 0.
 */
 int
-domAddNodeToList( xmlNodePtr cur, xmlNodePtr prev, xmlNodePtr next );
+xpc_domAddNodeToList( xmlNodePtr cur, xmlNodePtr prev, xmlNodePtr next );
 
 /**
  * part A:
@@ -156,43 +156,43 @@ domAddNodeToList( xmlNodePtr cur, xmlNodePtr prev, xmlNodePtr next );
 /* A.1 DOM specified section */
 
 xmlChar *
-domName( xmlNodePtr node );
+xpc_domName( xmlNodePtr node );
 
 void
-domSetName( xmlNodePtr node, xmlChar* name );
+xpc_domSetName( xmlNodePtr node, xmlChar* name );
 
 xmlNodePtr
-domAppendChild( xmlNodePtr self,
+xpc_domAppendChild( xmlNodePtr self,
                 xmlNodePtr newChild );
 xmlNodePtr
-domReplaceChild( xmlNodePtr self,
+xpc_domReplaceChild( xmlNodePtr self,
                  xmlNodePtr newChlid,
                  xmlNodePtr oldChild );
 xmlNodePtr
-domRemoveChild( xmlNodePtr self,
+xpc_domRemoveChild( xmlNodePtr self,
                xmlNodePtr Child );
 xmlNodePtr
-domInsertBefore( xmlNodePtr self, 
+xpc_domInsertBefore( xmlNodePtr self, 
                  xmlNodePtr newChild,
                  xmlNodePtr refChild );
 
 xmlNodePtr
-domInsertAfter( xmlNodePtr self, 
+xpc_domInsertAfter( xmlNodePtr self, 
                 xmlNodePtr newChild,
                 xmlNodePtr refChild );
 
 /* A.3 extra functionality not specified in DOM L1/2*/
 xmlChar*
-domGetNodeValue( xmlNodePtr self );
+xpc_domGetNodeValue( xmlNodePtr self );
 
 void
-domSetNodeValue( xmlNodePtr self, xmlChar* value );
+xpc_domSetNodeValue( xmlNodePtr self, xmlChar* value );
 
 void
-domSetParentNode( xmlNodePtr self, xmlNodePtr newParent );
+xpc_domSetParentNode( xmlNodePtr self, xmlNodePtr newParent );
 
 xmlNodePtr
-domReplaceNode( xmlNodePtr old, xmlNodePtr new );
+xpc_domReplaceNode( xmlNodePtr old, xmlNodePtr new );
 
 /** 
  * part B:
@@ -201,10 +201,10 @@ domReplaceNode( xmlNodePtr old, xmlNodePtr new );
  **/
 
 /**
- * NAME domImportNode
+ * NAME xpc_domImportNode
  * TYPE function
  * SYNOPSIS
- * node = domImportNode( document, node, move);#
+ * node = xpc_domImportNode( document, node, move);#
  *
  * the function will import a node to the given document. it will work safe
  * with namespaces and subtrees. 
@@ -217,7 +217,7 @@ domReplaceNode( xmlNodePtr old, xmlNodePtr new );
  * is returned 
  */
 xmlNodePtr
-domImportNode( xmlDocPtr document, xmlNodePtr node, int move );
+xpc_domImportNode( xmlDocPtr document, xmlNodePtr node, int move );
 
 /**
  * part C:
@@ -226,24 +226,24 @@ domImportNode( xmlDocPtr document, xmlNodePtr node, int move );
  **/
 
 xmlNodeSetPtr
-domGetElementsByTagName( xmlNodePtr self, xmlChar* name );
+xpc_domGetElementsByTagName( xmlNodePtr self, xmlChar* name );
 
 xmlNodeSetPtr
-domGetElementsByTagNameNS( xmlNodePtr self, xmlChar* nsURI, xmlChar* name );
+xpc_domGetElementsByTagNameNS( xmlNodePtr self, xmlChar* nsURI, xmlChar* name );
 
 xmlNsPtr
-domNewNs ( xmlNodePtr elem , xmlChar *prefix, xmlChar *href );
+xpc_domNewNs ( xmlNodePtr elem , xmlChar *prefix, xmlChar *href );
 
 xmlAttrPtr
-domHasNsProp(xmlNodePtr node, const xmlChar *name, const xmlChar *namespace);
+xpc_domHasNsProp(xmlNodePtr node, const xmlChar *name, const xmlChar *namespace);
 
 xmlAttrPtr
-domSetAttributeNode( xmlNodePtr node , xmlAttrPtr attr );
+xpc_domSetAttributeNode( xmlNodePtr node , xmlAttrPtr attr );
 
 int
-domNodeNormalize( xmlNodePtr node );
+xpc_domNodeNormalize( xmlNodePtr node );
 
 int
-domNodeNormalizeList( xmlNodePtr nodelist );
+xpc_domNodeNormalizeList( xmlNodePtr nodelist );
 
 #endif

@@ -1,5 +1,5 @@
 use Test;
-BEGIN { plan tests => 27 };
+BEGIN { plan tests => 28 };
 
 use XML::LibXML;
 use XML::LibXML::XPathContext;
@@ -85,3 +85,15 @@ ok($xc4->getContextNode->isSameNode($doc2->getDocumentElement));
 
 ok($xc4->findnodes('parent::*',$bar)->pop->nodeName eq 'foo');
 ok($xc4->getContextNode->isSameNode($doc2->getDocumentElement));
+
+# testcase for segfault found by Steve Hay
+my $xc5 = XML::LibXML::XPathContext->new();
+$xc5->registerNs('pfx', 'http://www.foo.com');
+my $doc = XML::LibXML->new->parse_string('<foo xmlns="http://www.foo.com" />');
+$xc5->setContextNode($doc);
+$xc5->findnodes('/');
+$xc5->setContextNode(undef);
+$xc5->getContextNode();
+$xc5->setContextNode($doc);
+$xc5->findnodes('/');
+ok(1);

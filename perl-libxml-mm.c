@@ -1,6 +1,6 @@
 /**
  * perl-libxml-mm.c
- * $Id: perl-libxml-mm.c,v 1.1.1.1 2003/03/14 14:32:01 m_ilya Exp $
+ * $Id: perl-libxml-mm.c,v 1.2 2003/05/20 15:25:50 pajas Exp $
  *
  * Basic concept:
  * perl varies in the implementation of UTF8 handling. this header (together
@@ -48,7 +48,7 @@ extern "C" {
  * memory leak problems that way.
  **/
 const char*
-PmmNodeTypeName( xmlNodePtr elem ){
+xpc_PmmNodeTypeName( xmlNodePtr elem ){
     const char *name = "XML::LibXML::Node";
 
     if ( elem != NULL ) {
@@ -107,7 +107,7 @@ PmmNodeTypeName( xmlNodePtr elem ){
  * track how intense the nodes of a document are used and will not
  * delete the nodes unless they are not refered from somewhere else.
  */
-struct _ProxyNode {
+struct _xpc_ProxyNode {
     xmlNodePtr node;
     xmlNodePtr owner;
     int count;
@@ -115,31 +115,31 @@ struct _ProxyNode {
 };
 
 /* helper type for the proxy structure */
-typedef struct _ProxyNode ProxyNode;
+typedef struct _xpc_ProxyNode xpc_ProxyNode;
 
 /* pointer to the proxy structure */
-typedef ProxyNode* ProxyNodePtr;
+typedef xpc_ProxyNode* xpc_ProxyNodePtr;
 
 /* this my go only into the header used by the xs */
-#define SvPROXYNODE(x) ((ProxyNodePtr)SvIV(SvRV(x)))
+#define SvPROXYNODE(x) ((xpc_ProxyNodePtr)SvIV(SvRV(x)))
 #define SvNAMESPACE(x) ((xmlNsPtr)SvIV(SvRV(x)))
 
-#define PmmREFCNT(node)      node->count
-#define PmmREFCNT_inc(node)  node->count++
-#define PmmNODE(thenode)     thenode->node
-#define PmmOWNER(node)       node->owner
-#define PmmOWNERPO(node)     ((node && PmmOWNER(node)) ? (ProxyNodePtr)PmmOWNER(node)->_private : node)
+#define xpc_PmmREFCNT(node)      node->count
+#define xpc_PmmREFCNT_inc(node)  node->count++
+#define xpc_PmmNODE(thenode)     thenode->node
+#define xpc_PmmOWNER(node)       node->owner
+#define xpc_PmmOWNERPO(node)     ((node && xpc_PmmOWNER(node)) ? (xpc_ProxyNodePtr)xpc_PmmOWNER(node)->_private : node)
 
-#define PmmENCODING(node)    node->encoding
-#define PmmNodeEncoding(node) ((ProxyNodePtr)(node->_private))->encoding
+#define xpc_PmmENCODING(node)    node->encoding
+#define xpc_PmmNodeEncoding(node) ((xpc_ProxyNodePtr)(node->_private))->encoding
 
 /* creates a new proxy node from a given node. this function is aware
  * about the fact that a node may already has a proxy structure.
  */
-ProxyNodePtr
-PmmNewNode(xmlNodePtr node)
+xpc_ProxyNodePtr
+xpc_PmmNewNode(xmlNodePtr node)
 {
-    ProxyNodePtr proxy = NULL;
+    xpc_ProxyNodePtr proxy = NULL;
 
     if ( node == NULL ) {
         warn( "no node found\n" );
@@ -147,8 +147,8 @@ PmmNewNode(xmlNodePtr node)
     }
 
     if ( node->_private == NULL ) {
-        proxy = (ProxyNodePtr)malloc(sizeof(struct _ProxyNode)); 
-        /* proxy = (ProxyNodePtr)Newz(0, proxy, 0, ProxyNode);  */
+        proxy = (xpc_ProxyNodePtr)malloc(sizeof(struct _xpc_ProxyNode)); 
+        /* proxy = (xpc_ProxyNodePtr)Newz(0, proxy, 0, xpc_ProxyNode);  */
         if (proxy != NULL) {
             proxy->node  = node;
             proxy->owner   = NULL;
@@ -157,25 +157,25 @@ PmmNewNode(xmlNodePtr node)
         }
     }
     else {
-        proxy = (ProxyNodePtr)node->_private;
+        proxy = (xpc_ProxyNodePtr)node->_private;
     }
 
     return proxy;
 }
 
-ProxyNodePtr
-PmmNewFragment(xmlDocPtr doc) 
+xpc_ProxyNodePtr
+xpc_PmmNewFragment(xmlDocPtr doc) 
 {
-    ProxyNodePtr retval = NULL;
+    xpc_ProxyNodePtr retval = NULL;
     xmlNodePtr frag = NULL;
 
     xs_warn("new frag\n");
     frag   = xmlNewDocFragment( doc );
-    retval = PmmNewNode(frag);
+    retval = xpc_PmmNewNode(frag);
 
     if ( doc ) {
         xs_warn("inc document\n");
-        PmmREFCNT_inc(((ProxyNodePtr)doc->_private));
+        xpc_PmmREFCNT_inc(((xpc_ProxyNodePtr)doc->_private));
         retval->owner = (xmlNodePtr)doc;
     }
 
@@ -186,7 +186,7 @@ PmmNewFragment(xmlDocPtr doc)
  * has several diffrent nodetypes.
  */
 void
-PmmFreeNode( xmlNodePtr node )
+xpc_PmmFreeNode( xmlNodePtr node )
 {  
     switch( node->type ) {
     case XML_DOCUMENT_NODE:
@@ -223,22 +223,22 @@ PmmFreeNode( xmlNodePtr node )
 
 /* decrements the proxy counter. if the counter becomes zero or less,
    this method will free the proxy node. If the node is part of a
-   subtree, PmmREFCNT_def will fix the reference counts and delete
+   subtree, xpc_PmmREFCNT_def will fix the reference counts and delete
    the subtree if it is not required any more.
  */
 int
-PmmREFCNT_dec( ProxyNodePtr node ) 
+xpc_PmmREFCNT_dec( xpc_ProxyNodePtr node ) 
 { 
     xmlNodePtr libnode = NULL;
-    ProxyNodePtr owner = NULL;  
+    xpc_ProxyNodePtr owner = NULL;  
     int retval = 0;
 
     if ( node ) {
-        retval = PmmREFCNT(node)--;
-        if ( PmmREFCNT(node) <= 0 ) {
+        retval = xpc_PmmREFCNT(node)--;
+        if ( xpc_PmmREFCNT(node) <= 0 ) {
             xs_warn( "NODE DELETATION\n" );
 
-            libnode = PmmNODE( node );
+            libnode = xpc_PmmNODE( node );
             if ( libnode != NULL ) {
                 if ( libnode->_private != node ) {
                     xs_warn( "lost node\n" );
@@ -249,25 +249,25 @@ PmmREFCNT_dec( ProxyNodePtr node )
                 }
             }
 
-            PmmNODE( node ) = NULL;
-            if ( PmmOWNER(node) && PmmOWNERPO(node) ) {
+            xpc_PmmNODE( node ) = NULL;
+            if ( xpc_PmmOWNER(node) && xpc_PmmOWNERPO(node) ) {
                 xs_warn( "DOC NODE!\n" );
-                owner = PmmOWNERPO(node);
-                PmmOWNER( node ) = NULL;
+                owner = xpc_PmmOWNERPO(node);
+                xpc_PmmOWNER( node ) = NULL;
                 if( libnode != NULL && libnode->parent == NULL ) {
                     /* this is required if the node does not directly
                      * belong to the document tree
                      */
                     xs_warn( "REAL DELETE" );
-                    PmmFreeNode( libnode );
+                    xpc_PmmFreeNode( libnode );
                 }
                 xs_warn( "decrease owner" );
-                PmmREFCNT_dec( owner );
+                xpc_PmmREFCNT_dec( owner );
             }
             else if ( libnode != NULL ) {
                 xs_warn( "STANDALONE REAL DELETE" );
                 
-                PmmFreeNode( libnode );
+                xpc_PmmFreeNode( libnode );
             }
             /* Safefree( node ); */
             free( node );
@@ -293,27 +293,27 @@ PmmREFCNT_dec( ProxyNodePtr node )
  * nodes.
  */
 SV*
-PmmNodeToSv( xmlNodePtr node, ProxyNodePtr owner ) 
+xpc_PmmNodeToSv( xmlNodePtr node, xpc_ProxyNodePtr owner ) 
 {
-    ProxyNodePtr dfProxy= NULL;
+    xpc_ProxyNodePtr dfProxy= NULL;
     SV * retval = &PL_sv_undef;
     const char * CLASS = "XML::LibXML::Node";
 
     if ( node != NULL ) {
         /* find out about the class */
-        CLASS = PmmNodeTypeName( node );
+        CLASS = xpc_PmmNodeTypeName( node );
         xs_warn(" return new perl node\n");
         xs_warn( CLASS );
 
         if ( node->_private ) {
-            dfProxy = PmmNewNode(node);
+            dfProxy = xpc_PmmNewNode(node);
         }
         else {
-            dfProxy = PmmNewNode(node);
+            dfProxy = xpc_PmmNewNode(node);
             if ( dfProxy != NULL ) {
                 if ( owner != NULL ) {
-                    dfProxy->owner = PmmNODE( owner );
-                    PmmREFCNT_inc( owner );
+                    dfProxy->owner = xpc_PmmNODE( owner );
+                    xpc_PmmREFCNT_inc( owner );
                 }
                 else {
                    xs_warn("node contains himself");
@@ -326,7 +326,7 @@ PmmNodeToSv( xmlNodePtr node, ProxyNodePtr owner )
 
         retval = NEWSV(0,0);
         sv_setref_pv( retval, CLASS, (void*)dfProxy );
-        PmmREFCNT_inc(dfProxy); 
+        xpc_PmmREFCNT_inc(dfProxy); 
 
         switch ( node->type ) {
         case XML_DOCUMENT_NODE:
@@ -348,7 +348,7 @@ PmmNodeToSv( xmlNodePtr node, ProxyNodePtr owner )
 }
 
 xmlNodePtr
-PmmCloneNode( xmlNodePtr node, int recursive )
+xpc_PmmCloneNode( xmlNodePtr node, int recursive )
 {
     xmlNodePtr retval = NULL;
     
@@ -390,28 +390,28 @@ PmmCloneNode( xmlNodePtr node, int recursive )
  */
 
 xmlNodePtr
-PmmSvNodeExt( SV* perlnode, int copy ) 
+xpc_PmmSvNodeExt( SV* perlnode, int copy ) 
 {
     xmlNodePtr retval = NULL;
-    ProxyNodePtr proxy = NULL;
+    xpc_ProxyNodePtr proxy = NULL;
 
     if ( perlnode != NULL && perlnode != &PL_sv_undef ) {
 /*         if ( sv_derived_from(perlnode, "XML::LibXML::Node") */
 /*              && SvPROXYNODE(perlnode) != NULL  ) { */
-/*             retval = PmmNODE( SvPROXYNODE(perlnode) ) ; */
+/*             retval = xpc_PmmNODE( SvPROXYNODE(perlnode) ) ; */
 /*         } */
         xs_warn("   perlnode found\n" );
         if ( sv_derived_from(perlnode, "XML::LibXML::Node")  ) {
             proxy = SvPROXYNODE(perlnode);
             if ( proxy != NULL ) {
                 xs_warn( "is a xmlNodePtr structure\n" );
-                retval = PmmNODE( proxy ) ;
+                retval = xpc_PmmNODE( proxy ) ;
             }
 
             if ( retval != NULL
-                 && ((ProxyNodePtr)retval->_private) != proxy ) {
+                 && ((xpc_ProxyNodePtr)retval->_private) != proxy ) {
                 xs_warn( "no node in proxy node" );
-                PmmNODE( proxy ) = NULL;
+                xpc_PmmNODE( proxy ) = NULL;
                 retval = NULL;
             }
         }
@@ -427,7 +427,7 @@ PmmSvNodeExt( SV* perlnode, int copy )
                     xs_warn( "no XML::LibXML node found in GDOME object" );
                 }
                 else if ( copy == 1 ) {
-                    retval = PmmCloneNode( retval, 1 );
+                    retval = xpc_PmmCloneNode( retval, 1 );
                 }
             }
         }
@@ -440,32 +440,32 @@ PmmSvNodeExt( SV* perlnode, int copy )
 /* extracts the libxml2 owner node from a perl reference
  */
 xmlNodePtr
-PmmSvOwner( SV* perlnode ) 
+xpc_PmmSvOwner( SV* perlnode ) 
 {
     xmlNodePtr retval = NULL;
     if ( perlnode != NULL
          && perlnode != &PL_sv_undef
          && SvPROXYNODE(perlnode) != NULL  ) {
-        retval = PmmOWNER( SvPROXYNODE(perlnode) );
+        retval = xpc_PmmOWNER( SvPROXYNODE(perlnode) );
     }
     return retval;
 }
 
-/* reverse to PmmSvOwner(). sets the owner of the current node. this
+/* reverse to xpc_PmmSvOwner(). sets the owner of the current node. this
  * will increase the proxy count of the owner.
  */
 SV* 
-PmmSetSvOwner( SV* perlnode, SV* extra )
+xpc_PmmSetSvOwner( SV* perlnode, SV* extra )
 {
     if ( perlnode != NULL && perlnode != &PL_sv_undef ) {        
-        PmmOWNER( SvPROXYNODE(perlnode)) = PmmNODE( SvPROXYNODE(extra) );
-        PmmREFCNT_inc( SvPROXYNODE(extra) );
+        xpc_PmmOWNER( SvPROXYNODE(perlnode)) = xpc_PmmNODE( SvPROXYNODE(extra) );
+        xpc_PmmREFCNT_inc( SvPROXYNODE(extra) );
     }
     return perlnode;
 }
 
 void
-PmmFixOwnerList( xmlNodePtr list, ProxyNodePtr parent )
+xpc_PmmFixOwnerList( xmlNodePtr list, xpc_ProxyNodePtr parent )
 {
     if ( list ) {
         xmlNodePtr iterator = list;
@@ -483,14 +483,14 @@ PmmFixOwnerList( xmlNodePtr list, ProxyNodePtr parent )
             }
 
             if ( iterator->_private != NULL ) {
-                PmmFixOwner( (ProxyNodePtr)iterator->_private, parent );
+                xpc_PmmFixOwner( (xpc_ProxyNodePtr)iterator->_private, parent );
             }
             else {
                 if ( iterator->type != XML_ATTRIBUTE_NODE
                      &&  iterator->properties != NULL ){
-                    PmmFixOwnerList( (xmlNodePtr)iterator->properties, parent );
+                    xpc_PmmFixOwnerList( (xmlNodePtr)iterator->properties, parent );
                 }
-                PmmFixOwnerList(iterator->children, parent);
+                xpc_PmmFixOwnerList(iterator->children, parent);
             }
             iterator = iterator->next;
         }
@@ -503,7 +503,7 @@ PmmFixOwnerList( xmlNodePtr list, ProxyNodePtr parent )
  * where the documents or the owner node may get changed. this method is
  * aware about nodes that already belong to a certain owner node. 
  *
- * the method uses the internal methods PmmFixNode and PmmChildNodes to
+ * the method uses the internal methods xpc_PmmFixNode and xpc_PmmChildNodes to
  * do the real updates.
  * 
  * in the worst case this traverses the subtree twice durig a node 
@@ -512,12 +512,12 @@ PmmFixOwnerList( xmlNodePtr list, ProxyNodePtr parent )
  * owner may differ this double traversing makes sense.
  */ 
 int
-PmmFixOwner( ProxyNodePtr nodetofix, ProxyNodePtr parent ) 
+xpc_PmmFixOwner( xpc_ProxyNodePtr nodetofix, xpc_ProxyNodePtr parent ) 
 {
-    ProxyNodePtr oldParent = NULL;
+    xpc_ProxyNodePtr oldParent = NULL;
 
     if ( nodetofix != NULL ) {
-        switch ( PmmNODE(nodetofix)->type ) {
+        switch ( xpc_PmmNODE(nodetofix)->type ) {
         case XML_ENTITY_DECL:
         case XML_ATTRIBUTE_DECL:
         case XML_NAMESPACE_DECL:
@@ -528,8 +528,8 @@ PmmFixOwner( ProxyNodePtr nodetofix, ProxyNodePtr parent )
             break;
         }
 
-        if ( PmmOWNER(nodetofix) ) {
-            oldParent = PmmOWNERPO(nodetofix);
+        if ( xpc_PmmOWNER(nodetofix) ) {
+            oldParent = xpc_PmmOWNERPO(nodetofix);
         }
         
         /* The owner data is only fixed if the node is neither a
@@ -539,28 +539,28 @@ PmmFixOwner( ProxyNodePtr nodetofix, ProxyNodePtr parent )
          */
         if( oldParent != parent ) {
             if ( parent && parent != nodetofix ){
-                PmmOWNER(nodetofix) = PmmNODE(parent);
-                    PmmREFCNT_inc( parent );
+                xpc_PmmOWNER(nodetofix) = xpc_PmmNODE(parent);
+                    xpc_PmmREFCNT_inc( parent );
             }
             else {
-                PmmOWNER(nodetofix) = NULL;
+                xpc_PmmOWNER(nodetofix) = NULL;
             }
             
             if ( oldParent && oldParent != nodetofix )
-                PmmREFCNT_dec(oldParent);
+                xpc_PmmREFCNT_dec(oldParent);
             
-            if ( PmmNODE(nodetofix)->type != XML_ATTRIBUTE_NODE
-                 && PmmNODE(nodetofix)->properties != NULL ) {
-                PmmFixOwnerList( (xmlNodePtr)PmmNODE(nodetofix)->properties,
+            if ( xpc_PmmNODE(nodetofix)->type != XML_ATTRIBUTE_NODE
+                 && xpc_PmmNODE(nodetofix)->properties != NULL ) {
+                xpc_PmmFixOwnerList( (xmlNodePtr)xpc_PmmNODE(nodetofix)->properties,
                                  parent );
             }
 
-            if ( parent == NULL || PmmNODE(nodetofix)->parent == NULL ) {
+            if ( parent == NULL || xpc_PmmNODE(nodetofix)->parent == NULL ) {
                 /* fix to self */
                 parent = nodetofix;
             }
 
-            PmmFixOwnerList(PmmNODE(nodetofix)->children, parent);
+            xpc_PmmFixOwnerList(xpc_PmmNODE(nodetofix)->children, parent);
         }
         else {
             xs_warn( "node doesn't need to get fixed" );
@@ -571,24 +571,24 @@ PmmFixOwner( ProxyNodePtr nodetofix, ProxyNodePtr parent )
 }
 
 void
-PmmFixOwnerNode( xmlNodePtr node, ProxyNodePtr parent )
+xpc_PmmFixOwnerNode( xmlNodePtr node, xpc_ProxyNodePtr parent )
 {
     if ( node != NULL && parent != NULL ) {
         if ( node->_private != NULL ) {
-            PmmFixOwner( node->_private, parent );
+            xpc_PmmFixOwner( node->_private, parent );
         }
         else {
-            PmmFixOwnerList(node->children, parent );
+            xpc_PmmFixOwnerList(node->children, parent );
         } 
     }
 } 
 
-ProxyNodePtr
-PmmNewContext(xmlParserCtxtPtr node)
+xpc_ProxyNodePtr
+xpc_PmmNewContext(xmlParserCtxtPtr node)
 {
-    ProxyNodePtr proxy = NULL;
+    xpc_ProxyNodePtr proxy = NULL;
 
-    proxy = (ProxyNodePtr)xmlMalloc(sizeof(ProxyNode));
+    proxy = (xpc_ProxyNodePtr)xmlMalloc(sizeof(xpc_ProxyNode));
     if (proxy != NULL) {
         proxy->node  = (xmlNodePtr)node;
         proxy->owner   = NULL;
@@ -601,26 +601,26 @@ PmmNewContext(xmlParserCtxtPtr node)
 }
  
 int
-PmmContextREFCNT_dec( ProxyNodePtr node ) 
+xpc_PmmContextREFCNT_dec( xpc_ProxyNodePtr node ) 
 { 
     xmlParserCtxtPtr libnode = NULL;
     int retval = 0;
     if ( node ) {
-        retval = PmmREFCNT(node)--;
-        if ( PmmREFCNT(node) <= 0 ) {
+        retval = xpc_PmmREFCNT(node)--;
+        if ( xpc_PmmREFCNT(node) <= 0 ) {
             xs_warn( "NODE DELETATION\n" );
-            libnode = (xmlParserCtxtPtr)PmmNODE( node );
+            libnode = (xmlParserCtxtPtr)xpc_PmmNODE( node );
             if ( libnode != NULL ) {
                 if (libnode->_private != NULL ) {
                     if ( libnode->_private != (void*)node ) {
-                        PmmSAXCloseContext( libnode );
+                        xpc_PmmSAXCloseContext( libnode );
                     }
                     else {
                         xmlFree( libnode->_private );
                     }
                     libnode->_private = NULL;
                 }
-                PmmNODE( node )   = NULL;
+                xpc_PmmNODE( node )   = NULL;
                 xmlFreeParserCtxt(libnode);
             }
         }
@@ -630,19 +630,19 @@ PmmContextREFCNT_dec( ProxyNodePtr node )
 }
 
 SV*
-PmmContextSv( xmlParserCtxtPtr ctxt )
+xpc_PmmContextSv( xmlParserCtxtPtr ctxt )
 {
-    ProxyNodePtr dfProxy= NULL;
+    xpc_ProxyNodePtr dfProxy= NULL;
     SV * retval = &PL_sv_undef;
     const char * CLASS = "XML::LibXML::ParserContext";
     void * saxvector = NULL;
 
     if ( ctxt != NULL ) {
-        dfProxy = PmmNewContext(ctxt);
+        dfProxy = xpc_PmmNewContext(ctxt);
 
         retval = NEWSV(0,0);
         sv_setref_pv( retval, CLASS, (void*)dfProxy );
-        PmmREFCNT_inc(dfProxy); 
+        xpc_PmmREFCNT_inc(dfProxy); 
     }         
     else {
         xs_warn( "no node found!" );
@@ -652,7 +652,7 @@ PmmContextSv( xmlParserCtxtPtr ctxt )
 }
 
 xmlParserCtxtPtr
-PmmSvContext( SV * scalar ) 
+xpc_PmmSvContext( SV * scalar ) 
 {
     xmlParserCtxtPtr retval = NULL;
 
@@ -660,7 +660,7 @@ PmmSvContext( SV * scalar )
          && scalar != &PL_sv_undef
          && sv_isa( scalar, "XML::LibXML::ParserContext" )
          && SvPROXYNODE(scalar) != NULL  ) {
-        retval = (xmlParserCtxtPtr)PmmNODE( SvPROXYNODE(scalar) );
+        retval = (xmlParserCtxtPtr)xpc_PmmNODE( SvPROXYNODE(scalar) );
     }
     else {
         if ( scalar == NULL
@@ -681,7 +681,7 @@ PmmSvContext( SV * scalar )
 }
 
 xmlChar*
-PmmFastEncodeString( int charset,
+xpc_PmmFastEncodeString( int charset,
                      const xmlChar *string,
                      const xmlChar *encoding ) 
 {
@@ -727,7 +727,7 @@ PmmFastEncodeString( int charset,
 }
 
 xmlChar*
-PmmFastDecodeString( int charset,
+xpc_PmmFastDecodeString( int charset,
                      const xmlChar *string,
                      const xmlChar *encoding) 
 {
@@ -777,7 +777,7 @@ PmmFastDecodeString( int charset,
  * while the encodig has the name of the encoding of string
  **/ 
 xmlChar*
-PmmEncodeString( const char *encoding, const xmlChar *string ){
+xpc_PmmEncodeString( const char *encoding, const xmlChar *string ){
     xmlCharEncoding enc;
     xmlChar *ret = NULL;
     xmlCharEncodingHandlerPtr coder = NULL;
@@ -786,7 +786,7 @@ PmmEncodeString( const char *encoding, const xmlChar *string ){
         if( encoding != NULL ) {
             xs_warn( encoding );
             enc = xmlParseCharEncoding( encoding );
-            ret = PmmFastEncodeString( enc, string, (const xmlChar *)encoding );
+            ret = xpc_PmmFastEncodeString( enc, string, (const xmlChar *)encoding );
         }
         else {
             /* if utf-8 is requested we do nothing */
@@ -802,18 +802,18 @@ PmmEncodeString( const char *encoding, const xmlChar *string ){
  * encoding is the coding name
  **/
 char*
-PmmDecodeString( const char *encoding, const xmlChar *string){
+xpc_PmmDecodeString( const char *encoding, const xmlChar *string){
     char *ret=NULL;
     xmlCharEncoding enc;
     xmlBufferPtr in = NULL, out = NULL;
     xmlCharEncodingHandlerPtr coder = NULL;
 
     if ( string != NULL ) {
-        xs_warn( "PmmDecodeString called" );
+        xs_warn( "xpc_PmmDecodeString called" );
         if( encoding != NULL ) {
             enc = xmlParseCharEncoding( encoding );
-            ret = (char*)PmmFastDecodeString( enc, string, (const xmlChar*)encoding );
-            xs_warn( "PmmDecodeString done" );
+            ret = (char*)xpc_PmmFastDecodeString( enc, string, (const xmlChar*)encoding );
+            xs_warn( "xpc_PmmDecodeString done" );
         }
         else {
             ret = (char*)xmlStrdup(string);
@@ -824,7 +824,7 @@ PmmDecodeString( const char *encoding, const xmlChar *string){
 
 
 SV*
-C2Sv( const xmlChar *string, const xmlChar *encoding )
+xpc_C2Sv( const xmlChar *string, const xmlChar *encoding )
 {
     SV *retval = &PL_sv_undef;
     xmlCharEncoding enc;
@@ -866,7 +866,7 @@ C2Sv( const xmlChar *string, const xmlChar *encoding )
 }
 
 xmlChar *
-Sv2C( SV* scalar, const xmlChar *encoding )
+xpc_Sv2C( SV* scalar, const xmlChar *encoding )
 {
     xmlChar *retval = NULL;
 
@@ -884,8 +884,8 @@ Sv2C( SV* scalar, const xmlChar *encoding )
 #else
             if ( encoding != NULL ) {        
 #endif
-                xs_warn( "domEncodeString!" );
-                ts= PmmEncodeString( (const char *)encoding, string );
+                xs_warn( "xpc_domEncodeString!" );
+                ts= xpc_PmmEncodeString( (const char *)encoding, string );
                 xs_warn( "done!" );
                 if ( string != NULL ) {
                     xmlFree(string);
@@ -904,7 +904,7 @@ Sv2C( SV* scalar, const xmlChar *encoding )
 }
 
 SV*
-nodeC2Sv( const xmlChar * string,  xmlNodePtr refnode )
+nodexpc_C2Sv( const xmlChar * string,  xmlNodePtr refnode )
 {
     /* this is a little helper function to avoid to much redundand
        code in LibXML.xs */
@@ -915,7 +915,7 @@ nodeC2Sv( const xmlChar * string,  xmlNodePtr refnode )
         xmlDocPtr real_doc = refnode->doc;
         if ( real_doc && real_doc->encoding != NULL ) {
 
-            xmlChar * decoded = PmmFastDecodeString( PmmNodeEncoding(real_doc) ,
+            xmlChar * decoded = xpc_PmmFastDecodeString( xpc_PmmNodeEncoding(real_doc) ,
                                                      (const xmlChar *)string,
                                                      (const xmlChar*)real_doc->encoding);
             len = xmlStrlen( decoded );
@@ -938,7 +938,7 @@ nodeC2Sv( const xmlChar * string,  xmlNodePtr refnode )
                 retval = newSVpvn( (const char *)decoded, len );
             }
 
-            /* retval = C2Sv( decoded, real_doc->encoding ); */
+            /* retval = xpc_C2Sv( decoded, real_doc->encoding ); */
             xmlFree( decoded );
         }
         else {
@@ -953,7 +953,7 @@ nodeC2Sv( const xmlChar * string,  xmlNodePtr refnode )
 }
 
 xmlChar *
-nodeSv2C( SV * scalar, xmlNodePtr refnode )
+nodexpc_Sv2C( SV * scalar, xmlNodePtr refnode )
 {
     /* this function requires conditionized compiling, because we
        request a function, that does not exists in earlier versions of
@@ -981,8 +981,8 @@ nodeSv2C( SV * scalar, xmlNodePtr refnode )
 #else
                     if ( real_dom->encoding != NULL ) {        
 #endif
-                        xs_warn( "domEncodeString!" );
-                        ts= PmmFastEncodeString( PmmNodeEncoding(real_dom),
+                        xs_warn( "xpc_domEncodeString!" );
+                        ts= xpc_PmmFastEncodeString( xpc_PmmNodeEncoding(real_dom),
                                                  string,
                                                  (const xmlChar*)real_dom->encoding );
                         xs_warn( "done!" );
@@ -1010,11 +1010,11 @@ nodeSv2C( SV * scalar, xmlNodePtr refnode )
     xs_warn("no encoding !!");
 #endif
 
-    return  Sv2C( scalar, NULL ); 
+    return  xpc_Sv2C( scalar, NULL ); 
 }
 
 SV * 
-PmmNodeToGdomeSv( xmlNodePtr node ) 
+xpc_PmmNodeToGdomeSv( xmlNodePtr node ) 
 {
     SV * retval = &PL_sv_undef;
 

@@ -1,6 +1,6 @@
 /**
  * perl-libxml-mm.h
- * $Id: perl-libxml-mm.h,v 1.1.1.1 2003/03/14 14:32:03 m_ilya Exp $
+ * $Id: perl-libxml-mm.h,v 1.2 2003/05/20 15:25:50 pajas Exp $
  *
  * Basic concept:
  * perl varies in the implementation of UTF8 handling. this header (together
@@ -45,7 +45,7 @@ extern "C" {
 #define xs_warn(string)
 #endif
 
-struct _ProxyNode {
+struct _xpc_ProxyNode {
     xmlNodePtr node;
     xmlNodePtr owner;
     int count;
@@ -53,38 +53,38 @@ struct _ProxyNode {
 };
 
 /* helper type for the proxy structure */
-typedef struct _ProxyNode ProxyNode;
+typedef struct _xpc_ProxyNode xpc_ProxyNode;
 
 /* pointer to the proxy structure */
-typedef ProxyNode* ProxyNodePtr;
+typedef xpc_ProxyNode* xpc_ProxyNodePtr;
 
 /* this my go only into the header used by the xs */
-#define SvPROXYNODE(x) ((ProxyNodePtr)SvIV(SvRV(x)))
-#define PmmPROXYNODE(x) ((ProxyNodePtr)x->_private)
+#define SvPROXYNODE(x) ((xpc_ProxyNodePtr)SvIV(SvRV(x)))
+#define xpc_PmmPROXYNODE(x) ((xpc_ProxyNodePtr)x->_private)
 
-#define PmmREFCNT(node)      node->count
-#define PmmREFCNT_inc(node)  node->count++
-#define PmmNODE(xnode)       xnode->node
-#define PmmOWNER(node)       node->owner
-#define PmmOWNERPO(node)     ((node && PmmOWNER(node)) ? (ProxyNodePtr)PmmOWNER(node)->_private : node)
-#define PmmENCODING(node)    node->encoding
+#define xpc_PmmREFCNT(node)      node->count
+#define xpc_PmmREFCNT_inc(node)  node->count++
+#define xpc_PmmNODE(xnode)       xnode->node
+#define xpc_PmmOWNER(node)       node->owner
+#define xpc_PmmOWNERPO(node)     ((node && xpc_PmmOWNER(node)) ? (xpc_ProxyNodePtr)xpc_PmmOWNER(node)->_private : node)
+#define xpc_PmmENCODING(node)    node->encoding
 
-ProxyNodePtr
-PmmNewNode(xmlNodePtr node);
+xpc_ProxyNodePtr
+xpc_PmmNewNode(xmlNodePtr node);
 
-ProxyNodePtr
-PmmNewFragment(xmlDocPtr document);
+xpc_ProxyNodePtr
+xpc_PmmNewFragment(xmlDocPtr document);
 
 SV*
-PmmCreateDocNode( unsigned int type, ProxyNodePtr pdoc, ...);
+xpc_PmmCreateDocNode( unsigned int type, xpc_ProxyNodePtr pdoc, ...);
 
 int
-PmmREFCNT_dec( ProxyNodePtr node );
+xpc_PmmREFCNT_dec( xpc_ProxyNodePtr node );
 
 SV*
-PmmNodeToSv( xmlNodePtr node, ProxyNodePtr owner );
+xpc_PmmNodeToSv( xmlNodePtr node, xpc_ProxyNodePtr owner );
 
-/* PmmSvNodeExt
+/* xpc_PmmSvNodeExt
  * TYPE 
  *    Function
  * PARAMETER
@@ -101,9 +101,9 @@ PmmNodeToSv( xmlNodePtr node, ProxyNodePtr owner );
  * the default value should be allways '1'. 
  */
 xmlNodePtr
-PmmSvNodeExt( SV * perlnode, int copy );
+xpc_PmmSvNodeExt( SV * perlnode, int copy );
 
-/* PmmSvNode
+/* xpc_PmmSvNode
  * TYPE
  *    Macro
  * PARAMETER
@@ -111,36 +111,36 @@ PmmSvNodeExt( SV * perlnode, int copy );
  *
  * DESCRIPTION
  *
- * PmmSvNode fetches the libxml node such as PmmSvNodeExt does. It is
+ * xpc_PmmSvNode fetches the libxml node such as xpc_PmmSvNodeExt does. It is
  * a wrapper, that sets the copy always to 1, which is good for all
  * cases XML::LibXML uses.
  */
-#define PmmSvNode(n) PmmSvNodeExt(n,1)
+#define xpc_PmmSvNode(n) xpc_PmmSvNodeExt(n,1)
 
 
 xmlNodePtr
-PmmSvOwner( SV * perlnode );
+xpc_PmmSvOwner( SV * perlnode );
 
 SV*
-PmmSetSvOwner(SV * perlnode, SV * owner );
+xpc_PmmSetSvOwner(SV * perlnode, SV * owner );
 
 void
-PmmFixOwner(ProxyNodePtr node, ProxyNodePtr newOwner );
+xpc_PmmFixOwner(xpc_ProxyNodePtr node, xpc_ProxyNodePtr newOwner );
 
 void
-PmmFixOwnerNode(xmlNodePtr node, ProxyNodePtr newOwner );
+xpc_PmmFixOwnerNode(xmlNodePtr node, xpc_ProxyNodePtr newOwner );
 
 int
-PmmContextREFCNT_dec( ProxyNodePtr node );
+xpc_PmmContextREFCNT_dec( xpc_ProxyNodePtr node );
 
 SV*
-PmmContextSv( xmlParserCtxtPtr ctxt );
+xpc_PmmContextSv( xmlParserCtxtPtr ctxt );
 
 xmlParserCtxtPtr
-PmmSvContext( SV * perlctxt );
+xpc_PmmSvContext( SV * perlctxt );
 
 /**
- * NAME PmmCopyNode
+ * NAME xpc_PmmCopyNode
  * TYPE function
  *
  * returns libxml2 node
@@ -152,10 +152,10 @@ PmmSvContext( SV * perlctxt );
  * XML::LibXSLT reuses it.
  */
 xmlNodePtr
-PmmCloneNode( xmlNodePtr node , int deep );
+xpc_PmmCloneNode( xmlNodePtr node , int deep );
 
 /**
- * NAME PmmNodeToGdomeSv
+ * NAME xpc_PmmNodeToGdomeSv
  * TYPE function
  *
  * returns XML::GDOME node
@@ -169,25 +169,25 @@ PmmCloneNode( xmlNodePtr node , int deep );
  *    
  */
 SV *
-PmmNodeToGdomeSv( xmlNodePtr node );
+xpc_PmmNodeToGdomeSv( xmlNodePtr node );
 
 /**
- * NAME PmmNodeTypeName
+ * NAME xpc_PmmNodeTypeName
  * TYPE function
  * 
  * returns the perl class name for the given node
  *
  * SYNOPSIS
- * CLASS = PmmNodeTypeName( node );
+ * CLASS = xpc_PmmNodeTypeName( node );
  */
 const char*
-PmmNodeTypeName( xmlNodePtr elem );
+xpc_PmmNodeTypeName( xmlNodePtr elem );
 
 xmlChar*
-PmmEncodeString( const char *encoding, const char *string );
+xpc_PmmEncodeString( const char *encoding, const char *string );
 
 char*
-PmmDecodeString( const char *encoding, const xmlChar *string);
+xpc_PmmDecodeString( const char *encoding, const xmlChar *string);
 
 /* string manipulation will go elsewhere! */
 
@@ -205,7 +205,7 @@ PmmDecodeString( const char *encoding, const xmlChar *string);
  *
  */
 SV*
-C2Sv( const xmlChar *string, const xmlChar *encoding );
+xpc_C2Sv( const xmlChar *string, const xmlChar *encoding );
 
 /*
  * NAME sv_to_c_string
@@ -221,12 +221,12 @@ C2Sv( const xmlChar *string, const xmlChar *encoding );
  *
  */
 xmlChar *
-Sv2C( SV* scalar, const xmlChar *encoding );
+xpc_Sv2C( SV* scalar, const xmlChar *encoding );
 
 SV*
-nodeC2Sv( const xmlChar * string,  xmlNodePtr refnode );
+nodexpc_C2Sv( const xmlChar * string,  xmlNodePtr refnode );
 
 xmlChar *
-nodeSv2C( SV * scalar, xmlNodePtr refnode );
+nodexpc_Sv2C( SV * scalar, xmlNodePtr refnode );
 
 #endif

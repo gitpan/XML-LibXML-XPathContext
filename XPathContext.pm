@@ -1,4 +1,4 @@
-# $Id: XPathContext.pm,v 1.23 2003/04/30 20:31:46 m_ilya Exp $
+# $Id: XPathContext.pm,v 1.26 2003/05/21 10:49:09 m_ilya Exp $
 
 package XML::LibXML::XPathContext;
 
@@ -7,7 +7,7 @@ use vars qw($VERSION @ISA $USE_LIBXML_DATA_TYPES);
 
 use XML::LibXML::NodeList;
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 require DynaLoader;
 
 @ISA = qw(DynaLoader);
@@ -20,20 +20,8 @@ $USE_LIBXML_DATA_TYPES = 0;
 
 sub findnodes {
     my ($self, $xpath, $node) = @_;
-    my @nodes;
-    my $prev_node;
-    if (ref($node)) {
-      $prev_node=$self->getContextNode();
-      $self->setContextNode($node);
-    }
-    $self->_enter;
-    eval {
-      @nodes = $self->_findnodes($xpath);
-    };
-    $self->_leave;
-    $self->setContextNode($prev_node) if ref($node);
 
-    if ($@) { die $@; }
+    my @nodes = $self->_guarded_find_call('_findnodes', $xpath, $node);
 
     if (wantarray) {
         return @nodes;
@@ -43,33 +31,42 @@ sub findnodes {
     }
 }
 
-sub findvalue {
-    my $self = shift;
-    return $self->find(@_)->to_literal->value;
-}
-
 sub find {
     my ($self, $xpath, $node) = @_;
     my ($type, @params);
 
-    my $prev_node;
-    if (ref($node)) {
-      $prev_node=$self->getContextNode();
-      $self->setContextNode($node);
-    }
-    $self->_enter;
-    eval {
-      ($type, @params) = $self->_find($xpath);
-    };
-    $self->_leave;
-    $self->setContextNode($prev_node) if ref($node);
-
-    if  ($@) { die $@; }
+    ($type, @params) = $self->_guarded_find_call('_find', $xpath, $node);
 
     if ($type) {
         return $type->new(@params);
     }
     return undef;
+}
+
+sub findvalue {
+    my $self = shift;
+    return $self->find(@_)->to_literal->value;
+}
+
+sub _guarded_find_call {
+    my ($self, $method, $xpath, $node) = @_;
+
+    my $prev_node;
+    if (ref($node)) {
+        $prev_node = $self->getContextNode();
+        $self->setContextNode($node);
+    }
+    $self->_enter;
+    my @ret;
+    eval {
+        @ret = $self->$method($xpath);
+    };
+    $self->_leave;
+    $self->setContextNode($prev_node) if ref($node);
+
+    if ($@) { die $@; }
+
+    return @ret;
 }
 
 sub registerFunction {
@@ -379,8 +376,6 @@ For example, the following code will not work:
     my $xc = XML::LibXML::XPathContext->new($node);
     $xc->registerFunction('func', sub { $xc->findvalue('1') });
     my $result = $xc->findvalue('func()');
-
-Currently this module doesn't work on Mac OS X.
 
 =head1 AUTHORS
 

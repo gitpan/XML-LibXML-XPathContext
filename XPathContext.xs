@@ -1,4 +1,4 @@
-/* $Id: XPathContext.xs,v 1.31 2003/04/04 18:42:59 pajas Exp $ */
+/* $Id: XPathContext.xs,v 1.34 2003/05/21 10:30:15 m_ilya Exp $ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,15 +23,15 @@ extern "C" {
 }
 #endif
 
-static SV * LibXML_error    = NULL;
+static SV * xpc_LibXML_error    = NULL;
 
-#define LibXML_init_error() LibXML_error = NEWSV(0, 512); \
-                            sv_setpvn(LibXML_error, "", 0); \
+#define xpc_LibXML_init_error() xpc_LibXML_error = NEWSV(0, 512); \
+                            sv_setpvn(xpc_LibXML_error, "", 0); \
                             xmlSetGenericErrorFunc( NULL ,  \
-                                (xmlGenericErrorFunc)LibXML_error_handler);
+                                (xmlGenericErrorFunc)xpc_LibXML_error_handler);
 
-#define LibXML_croak_error() if ( SvCUR( LibXML_error ) > 0 ) { \
-                                 croak("%s",SvPV(LibXML_error, len)); \
+#define xpc_LibXML_croak_error() if ( SvCUR( xpc_LibXML_error ) > 0 ) { \
+                                 croak("%s",SvPV(xpc_LibXML_error, len)); \
                              } 
 
 struct _XPathContextData {
@@ -51,7 +51,7 @@ typedef XPathContextData* XPathContextDataPtr;
 
 /* stores libxml errors into $@ */
 static void
-LibXML_error_handler(void * ctxt, const char * msg, ...)
+xpc_LibXML_error_handler(void * ctxt, const char * msg, ...)
 {
     va_list args;
     SV * sv;
@@ -62,8 +62,8 @@ LibXML_error_handler(void * ctxt, const char * msg, ...)
     sv_vsetpvfn(sv, msg, strlen(msg), &args, NULL, 0, NULL);
     va_end(args);
     
-    if (LibXML_error != NULL) {
-        sv_catsv(LibXML_error, sv); /* remember the last error */
+    if (xpc_LibXML_error != NULL) {
+        sv_catsv(xpc_LibXML_error, sv); /* remember the last error */
     }
     else {
         croak("%s",SvPV(sv, PL_na));
@@ -80,7 +80,7 @@ LibXML_error_handler(void * ctxt, const char * msg, ...)
 /* at least one reference.                                           */
 /* If pnode is NULL, only return current value for hashkey           */
 static SV*
-LibXML_XPathContext_pool ( xmlXPathContextPtr ctxt, int hashkey, SV * pnode ) {
+xpc_LibXML_XPathContext_pool ( xmlXPathContextPtr ctxt, int hashkey, SV * pnode ) {
     SV ** value;
     HV * pool;
     SV * key;
@@ -115,7 +115,7 @@ LibXML_XPathContext_pool ( xmlXPathContextPtr ctxt, int hashkey, SV * pnode ) {
 
 /* convert perl result structures to LibXML structures */
 static xmlXPathObjectPtr
-LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
+xpc_LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
                               SV* perl_result) {
     if (!SvOK(perl_result)) {
         return (xmlXPathObjectPtr)xmlXPathNewCString("");        
@@ -137,10 +137,10 @@ LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
             if (pnode != NULL && sv_isobject(*pnode) &&
                 sv_derived_from(*pnode,"XML::LibXML::Node")) {
                 xmlXPathNodeSetAdd(ret->nodesetval, 
-                                   (xmlNodePtr)PmmSvNode(*pnode));
+                                   (xmlNodePtr)xpc_PmmSvNode(*pnode));
                 if(ctxt) {
-                    LibXML_XPathContext_pool(ctxt->context,
-                                             (int) PmmSvNode(*pnode), *pnode);
+                    xpc_LibXML_XPathContext_pool(ctxt->context,
+                                             (int) xpc_PmmSvNode(*pnode), *pnode);
                 }
             } else {
                 warn("XPathContext: ignoring non-node member of a nodelist");
@@ -155,10 +155,10 @@ LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
                 xmlXPathObjectPtr ret;
 
                 ret =  (xmlXPathObjectPtr)xmlXPathNewNodeSet(NULL);
-                tmp_node = (xmlNodePtr)PmmSvNode(perl_result);
+                tmp_node = (xmlNodePtr)xpc_PmmSvNode(perl_result);
                 xmlXPathNodeSetAdd(ret->nodesetval,tmp_node);
                 if(ctxt) {
-                    LibXML_XPathContext_pool(ctxt->context, (int) PmmSvNode(perl_result), 
+                    xpc_LibXML_XPathContext_pool(ctxt->context, (int) xpc_PmmSvNode(perl_result), 
                                              perl_result);
                 }
 
@@ -190,7 +190,7 @@ LibXML_perldata_to_LibXMLdata(xmlXPathParserContextPtr ctxt,
  * **************************************************************** */
 /* Much of the code is borrowed from Matt Sergeant's XML::LibXSLT   */
 static xmlXPathObjectPtr
-LibXML_generic_variable_lookup(void* varLookupData,
+xpc_LibXML_generic_variable_lookup(void* varLookupData,
                                const xmlChar *name,
                                const xmlChar *ns_uri)
 {
@@ -219,8 +219,8 @@ LibXML_generic_variable_lookup(void* varLookupData,
     PUSHMARK(SP);
 
     XPUSHs( (lookup_data != NULL) ? *lookup_data : &PL_sv_undef ); 
-    XPUSHs(sv_2mortal(C2Sv(name,NULL))); 
-    XPUSHs(sv_2mortal(C2Sv(ns_uri,NULL)));
+    XPUSHs(sv_2mortal(xpc_C2Sv(name,NULL))); 
+    XPUSHs(sv_2mortal(xpc_C2Sv(ns_uri,NULL)));
     PUTBACK ;    
 
     count = perl_call_sv(*lookup_func, G_SCALAR|G_EVAL);
@@ -232,7 +232,7 @@ LibXML_generic_variable_lookup(void* varLookupData,
     } 
     if (count != 1) croak("XPathContext: variable lookup function returned more than one argument!");
 
-    ret = LibXML_perldata_to_LibXMLdata(NULL, POPs);
+    ret = xpc_LibXML_perldata_to_LibXMLdata(NULL, POPs);
 
     PUTBACK;
     FREETMPS;
@@ -245,7 +245,7 @@ LibXML_generic_variable_lookup(void* varLookupData,
  * **************************************************************** */
 /* Much of the code is borrowed from Matt Sergeant's XML::LibXSLT   */
 static void
-LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs) 
+xpc_LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs) 
 {
     xmlXPathObjectPtr obj,ret;
     xmlNodeSetPtr nodelist = NULL;
@@ -253,16 +253,15 @@ LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
     SV * perl_dispatch;
     int i;
     STRLEN len;
-    ProxyNodePtr owner = NULL;
+    xpc_ProxyNodePtr owner = NULL;
     SV *key;
     char *strkey;
     const char *function, *uri;
     SV **perl_function;
-    int xslt_tree = 0;
     dSP;
     SV * data;
 
-    /* warn("entered LibXML_generic_extension_function for %s\n",ctxt->context->function); */
+    /* warn("entered xpc_LibXML_generic_extension_function for %s\n",ctxt->context->function); */
     data = (SV *) ctxt->context->funcLookupData;
     if (ctxt->context->funcLookupData == NULL || !SvROK(data) ||
         SvTYPE(SvRV(data)) != SVt_PVHV) {
@@ -299,11 +298,8 @@ LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
     /* set up call to perl dispatcher function */
     for (i = 0; i < nargs; i++) {
         obj = (xmlXPathObjectPtr)valuePop(ctxt);
-        xslt_tree = 0;
         switch (obj->type) {
-        case XPATH_XSLT_TREE: /* PP: what's this? */
-            warn("%d's argument to %s is XPATH_XSLT_TREE",i,function);
-            xslt_tree = 1;  /* PP: these get destroyed (they have boolval=1) */
+        case XPATH_XSLT_TREE:
         case XPATH_NODESET:
             nodelist = obj->nodesetval;
             if ( nodelist ) {
@@ -319,27 +315,20 @@ LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
                     for( j ; j < len; j++){
                         tnode = nodelist->nodeTab[j];
                         if( tnode != NULL && tnode->doc != NULL) {
-                            owner = PmmOWNERPO(PmmNewNode((xmlNodePtr) tnode->doc));
+                            owner = xpc_PmmOWNERPO(xpc_PmmNewNode((xmlNodePtr) tnode->doc));
                         } else {
                             owner = NULL;
                         }
                         if (tnode->type == XML_NAMESPACE_DECL) {
                             element = sv_newmortal();
-                            cls = PmmNodeTypeName( tnode );
+                            cls = xpc_PmmNodeTypeName( tnode );
                             element = sv_setref_pv( element,
                                                     (const char *)cls,
                                                     (void *)xmlCopyNamespace((xmlNsPtr)tnode)
                                 );
                         }
                         else {
-                            /* need to copy the node as libxml2 will free it */
-                            /* PP: I guess its only true for XSLT_TREEs */
-                            if (xslt_tree) {
-                                xmlNodePtr tnode_cpy = xmlCopyNode(tnode, 1);
-                                element = PmmNodeToSv(tnode_cpy, owner);
-                            } else {
-                                element = PmmNodeToSv(tnode, owner);
-                            }
+                            element = xpc_PmmNodeToSv(tnode, owner);
                         }
                         XPUSHs( sv_2mortal(element) );
                     }
@@ -350,6 +339,8 @@ LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
                 XPUSHs(sv_2mortal(newSVpv("XML::LibXML::NodeList", 0)));                
                 XPUSHs(sv_2mortal(newSViv(0)));
             }
+            /* prevent libxml2 from freeing the actual nodes */
+            if (obj->boolval) obj->boolval=0;
             break;
         case XPATH_BOOLEAN:
             XPUSHs(sv_2mortal(newSVpv("XML::LibXML::Boolean", 0)));
@@ -361,12 +352,12 @@ LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
             break;
         case XPATH_STRING:
             XPUSHs(sv_2mortal(newSVpv("XML::LibXML::Literal", 0)));
-            XPUSHs(sv_2mortal(C2Sv(obj->stringval, 0)));
+            XPUSHs(sv_2mortal(xpc_C2Sv(obj->stringval, 0)));
             break;
         default:
             warn("Unknown XPath return type (%d) in call to {%s}%s - assuming string", obj->type, uri, function);
             XPUSHs(sv_2mortal(newSVpv("XML::LibXML::Literal", 0)));
-            XPUSHs(sv_2mortal(C2Sv((char*)xmlXPathCastToString(obj), 0)));
+            XPUSHs(sv_2mortal(xpc_C2Sv((char*)xmlXPathCastToString(obj), 0)));
         }
         xmlXPathFreeObject(obj);
     }
@@ -386,7 +377,7 @@ LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
 
     if (count != 1) croak("XPathContext: perl-dispatcher in pm file returned more than one argument!");
     
-    ret = LibXML_perldata_to_LibXMLdata(ctxt, POPs);
+    ret = xpc_LibXML_perldata_to_LibXMLdata(ctxt, POPs);
 
     valuePush(ctxt, ret);
     PUTBACK;
@@ -395,11 +386,12 @@ LibXML_generic_extension_function(xmlXPathParserContextPtr ctxt, int nargs)
 }
 
 static void
-LibXML_configure_namespaces( xmlXPathContextPtr ctxt ) {
+xpc_LibXML_configure_namespaces( xmlXPathContextPtr ctxt ) {
     xmlNodePtr node = ctxt->node;
 
     if (ctxt->namespaces != NULL) {
         xmlFree( ctxt->namespaces );
+        ctxt->namespaces = NULL;
     }
     if (node != NULL) {
         if (node->type == XML_DOCUMENT_NODE) {
@@ -417,17 +409,17 @@ LibXML_configure_namespaces( xmlXPathContextPtr ctxt ) {
 }
 
 static void
-LibXML_configure_xpathcontext( xmlXPathContextPtr ctxt ) {
-    xmlNodePtr node = PmmSvNode(XPathContextDATA(ctxt)->node);
+xpc_LibXML_configure_xpathcontext( xmlXPathContextPtr ctxt ) {
+    xmlNodePtr node = xpc_PmmSvNode(XPathContextDATA(ctxt)->node);
 
     if (node != NULL) {    
-      ctxt->doc = node->doc;
+        ctxt->doc = node->doc;
     } else {
-      ctxt->doc = NULL;
+        ctxt->doc = NULL;
     }
     ctxt->node = node;
 
-    LibXML_configure_namespaces(ctxt);
+    xpc_LibXML_configure_namespaces(ctxt);
 }
 
 MODULE = XML::LibXML::XPathContext     PACKAGE = XML::LibXML::XPathContext
@@ -446,6 +438,8 @@ new( CLASS, ... )
             pnode = ST(1);
 
         ctxt = xmlXPathNewContext( NULL );
+        ctxt->namespaces = NULL;
+
         New(0, ctxt->user, sizeof(XPathContextData), XPathContextData);
         if (ctxt->user == NULL) {
             croak("XPathContext: failed to allocate proxy object");
@@ -462,7 +456,7 @@ new( CLASS, ... )
 
         xmlXPathRegisterFunc(ctxt,
                              (const xmlChar *) "document",
-                             perlDocumentFunction);
+                             xpc_perlDocumentFunction);
 
         RETVAL = NEWSV(0,0),
         RETVAL = sv_setref_pv( RETVAL,
@@ -514,14 +508,10 @@ getContextNode( self )
         if ( ctxt == NULL ) {
             croak("XPathContext: missing xpath context");
         }
-    LibXML_configure_xpathcontext(ctxt);
     CODE:
-        if (ctxt->node != NULL) {
-            RETVAL = PmmNodeToSv(ctxt->node, 
-                                 PmmOWNERPO( PmmPROXYNODE(ctxt->node)));
-            
+        if(XPathContextDATA(ctxt)->node != NULL) {
+            RETVAL = newSVsv(XPathContextDATA(ctxt)->node);
         } else {
-            /* croak("XPathContext: lost context node"); */
             RETVAL = &PL_sv_undef;
         }
 OUTPUT:
@@ -537,13 +527,13 @@ setContextNode( self , pnode )
             croak("XPathContext: missing xpath context");
         }
     PPCODE:
-        if (XPathContextDATA(ctxt)->node && SvOK(XPathContextDATA(ctxt)->node)) {
+        if (XPathContextDATA(ctxt)->node != NULL) {
             SvREFCNT_dec(XPathContextDATA(ctxt)->node);
         }
         if (SvOK(pnode)) {
-          XPathContextDATA(ctxt)->node = newSVsv(pnode);
+            XPathContextDATA(ctxt)->node = newSVsv(pnode);
         } else {
-          XPathContextDATA(ctxt)->node = &PL_sv_undef;
+            XPathContextDATA(ctxt)->node = NULL;
         }
 
 void
@@ -559,7 +549,7 @@ registerNs( pxpath_context, prefix, ns_uri )
         if ( ctxt == NULL ) {
             croak("XPathContext: missing xpath context");
         }
-        LibXML_configure_xpathcontext(ctxt);
+        xpc_LibXML_configure_xpathcontext(ctxt);
     PPCODE:
         if(SvOK(ns_uri)) {
             if(xmlXPathRegisterNs(ctxt, SvPV_nolen(prefix),
@@ -581,7 +571,7 @@ getVarLookupData( self )
         if ( ctxt == NULL ) {
             croak("XPathContext: missing xpath context");
         }
-        LibXML_configure_xpathcontext(ctxt);
+        xpc_LibXML_configure_xpathcontext(ctxt);
     CODE:
         if (ctxt->varLookupData != NULL &&
             SvROK((SV*)(ctxt->varLookupData)) &&
@@ -615,7 +605,7 @@ registerVarLookupFunc( pxpath_context, lookup_func, lookup_data )
         if ( ctxt == NULL ) {
             croak("XPathContext: missing xpath context");
         }
-        LibXML_configure_xpathcontext(ctxt);
+        xpc_LibXML_configure_xpathcontext(ctxt);
         if (SvOK(lookup_func)) {
             if ( SvROK(lookup_func) && SvTYPE(SvRV(lookup_func)) == SVt_PVCV ) {
                 pfdr = newRV_inc((SV*) newAV());
@@ -637,7 +627,7 @@ registerVarLookupFunc( pxpath_context, lookup_func, lookup_data )
         }
     PPCODE:
         if (SvOK(lookup_func)) {
-            xmlXPathRegisterVariableLookup(ctxt, LibXML_generic_variable_lookup, pfdr);
+            xmlXPathRegisterVariableLookup(ctxt, xpc_LibXML_generic_variable_lookup, pfdr);
             if (ctxt->varLookupData==NULL || ctxt->varLookupData != pfdr) {
                 croak( "XPathContext: registration failure" );
             }    
@@ -664,7 +654,7 @@ registerFunctionNS( pxpath_context, name, uri, func)
         if ( ctxt == NULL ) {
             croak("XPathContext: missing xpath context");
         }
-        LibXML_configure_xpathcontext(ctxt);
+        xpc_LibXML_configure_xpathcontext(ctxt);
         if ( !SvOK(func) || SvOK(func) && 
              ((SvROK(func) && SvTYPE(SvRV(func)) == SVt_PVCV ) || SvPOK(func))) {
             if (ctxt->funcLookupData == NULL) {
@@ -708,11 +698,11 @@ registerFunctionNS( pxpath_context, name, uri, func)
         if (SvOK(uri)) {
             xmlXPathRegisterFuncNS(ctxt, name, SvPV(uri, len), 
                                    (SvOK(func) ? 
-                                    LibXML_generic_extension_function : NULL));
+                                    xpc_LibXML_generic_extension_function : NULL));
         } else {    
             xmlXPathRegisterFunc(ctxt, name, 
                                  (SvOK(func) ? 
-                                  LibXML_generic_extension_function : NULL));
+                                  xpc_LibXML_generic_extension_function : NULL));
         }
 
 void
@@ -754,7 +744,8 @@ _findnodes( pxpath_context, perl_xpath )
         SV * perl_xpath 
     PREINIT:
         xmlXPathContextPtr ctxt = NULL;
-        ProxyNodePtr owner = NULL;
+        xpc_ProxyNodePtr owner = NULL;
+        xmlXPathObjectPtr found = NULL;
         xmlNodeSetPtr nodelist = NULL;
         SV * element = NULL ;
         STRLEN len = 0 ;
@@ -764,11 +755,11 @@ _findnodes( pxpath_context, perl_xpath )
         if ( ctxt == NULL ) {
             croak("XPathContext: missing xpath context");
         }
-        LibXML_configure_xpathcontext(ctxt);
+        xpc_LibXML_configure_xpathcontext(ctxt);
         if ( ctxt->node == NULL ) {
             croak("XPathContext: lost current node");
         }
-        xpath = nodeSv2C(perl_xpath, ctxt->node);
+        xpath = nodexpc_Sv2C(perl_xpath, ctxt->node);
         if ( !(xpath && xmlStrlen(xpath)) ) {
             if ( xpath ) 
                 xmlFree(xpath);
@@ -777,23 +768,28 @@ _findnodes( pxpath_context, perl_xpath )
         }
     PPCODE:
         if ( ctxt->node->doc ) {
-            domNodeNormalize( xmlDocGetRootElement(ctxt->node->doc) );
+            xpc_domNodeNormalize( xmlDocGetRootElement(ctxt->node->doc) );
         }
         else {
-            domNodeNormalize( PmmOWNER(PmmNewNode(ctxt->node)) );
+            xpc_domNodeNormalize( xpc_PmmOWNER(xpc_PmmNewNode(ctxt->node)) );
         }
 
-        LibXML_init_error();
-
+        xpc_LibXML_init_error();
 
         PUTBACK ;
-        nodelist = domXPathSelect( ctxt, xpath );
+        found = xpc_domXPathFind( ctxt, xpath );
         SPAGAIN ;
+
+        if (found != NULL) {
+          nodelist = found->nodesetval;  
+        } else {
+            nodelist = NULL;
+        }
 
         xmlFree(xpath);
 
-        sv_2mortal( LibXML_error );
-        LibXML_croak_error();
+        sv_2mortal( xpc_LibXML_error );
+        xpc_LibXML_croak_error();
 
         if ( nodelist ) {
             if ( nodelist->nodeNr > 0 ) {
@@ -812,7 +808,7 @@ _findnodes( pxpath_context, perl_xpath )
                         xmlNsPtr newns = xmlCopyNamespace((xmlNsPtr)tnode);
                         if ( newns != NULL ) {
                             element = NEWSV(0,0);
-                            cls = PmmNodeTypeName( tnode );
+                            cls = xpc_PmmNodeTypeName( tnode );
                             element = sv_setref_pv( element,
                                                     (const char *)cls,
                                                     newns
@@ -824,19 +820,22 @@ _findnodes( pxpath_context, perl_xpath )
                     }
                     else {
                         if (tnode->doc) {
-                            owner = PmmOWNERPO(PmmNewNode((xmlNodePtr) tnode->doc));
+                            owner = xpc_PmmOWNERPO(xpc_PmmNewNode((xmlNodePtr) tnode->doc));
                         } else {
                             owner = NULL; /* self contained node */
                         }
-                        element = PmmNodeToSv(tnode, owner);
+                        element = xpc_PmmNodeToSv(tnode, owner);
                     }
                     XPUSHs( sv_2mortal(element) );
                 }
             }
-            xmlXPathFreeNodeSet( nodelist );
-        }
-        else {
-            LibXML_croak_error();
+            /* prevent libxml2 from freeing the actual nodes */
+            if (found->boolval) found->boolval=0;
+            xmlXPathFreeObject(found);
+          }
+          else {
+            xmlXPathFreeObject(found);
+            xpc_LibXML_croak_error();
         }
 
 void
@@ -845,7 +844,7 @@ _find( pxpath_context, pxpath )
         SV * pxpath
     PREINIT:
         xmlXPathContextPtr ctxt = NULL;
-        ProxyNodePtr owner = NULL;
+        xpc_ProxyNodePtr owner = NULL;
         xmlXPathObjectPtr found = NULL;
         xmlNodeSetPtr nodelist = NULL;
         SV* element = NULL ;
@@ -856,11 +855,11 @@ _find( pxpath_context, pxpath )
         if ( ctxt == NULL ) {
             croak("XPathContext: missing xpath context");
         }
-        LibXML_configure_xpathcontext(ctxt);
+        xpc_LibXML_configure_xpathcontext(ctxt);
         if ( ctxt->node == NULL ) {
             croak("XPathContext: lost current node");
         }
-        xpath = nodeSv2C(pxpath, ctxt->node);
+        xpath = nodexpc_Sv2C(pxpath, ctxt->node);
         if ( !(xpath && xmlStrlen(xpath)) ) {
             if ( xpath ) 
                 xmlFree(xpath);
@@ -870,22 +869,22 @@ _find( pxpath_context, pxpath )
 
     PPCODE:
         if ( ctxt->node->doc ) {
-            domNodeNormalize( xmlDocGetRootElement( ctxt->node->doc ) );
+            xpc_domNodeNormalize( xmlDocGetRootElement( ctxt->node->doc ) );
         }
         else {
-            domNodeNormalize( PmmOWNER(PmmNewNode(ctxt->node)) );
+            xpc_domNodeNormalize( xpc_PmmOWNER(xpc_PmmNewNode(ctxt->node)) );
         }
 
-        LibXML_init_error();
+        xpc_LibXML_init_error();
 
         PUTBACK ;
-        found = domXPathFind( ctxt, xpath );
+        found = xpc_domXPathFind( ctxt, xpath );
         SPAGAIN ;
 
         xmlFree( xpath );
 
-        sv_2mortal( LibXML_error );
-        LibXML_croak_error();
+        sv_2mortal( xpc_LibXML_error );
+        xpc_LibXML_croak_error();
 
         if (found) {
             switch (found->type) {
@@ -916,7 +915,7 @@ _find( pxpath_context, pxpath )
                                      xmlNsPtr newns = xmlCopyNamespace((xmlNsPtr)tnode);
                                     if ( newns != NULL ) {
                                         element = NEWSV(0,0);
-                                        cls = PmmNodeTypeName( tnode );
+                                        cls = xpc_PmmNodeTypeName( tnode );
                                         element = sv_setref_pv( element,
                                                                 (const char *)cls,
                                                                 (void*)newns
@@ -928,18 +927,18 @@ _find( pxpath_context, pxpath )
                                 }
                                 else {
                                     if (tnode->doc) {
-                                        owner = PmmOWNERPO(PmmNewNode((xmlNodePtr) tnode->doc));
+                                        owner = xpc_PmmOWNERPO(xpc_PmmNewNode((xmlNodePtr) tnode->doc));
                                     } else {
                                         owner = NULL; /* self contained node */
                                     }
-                                    element = PmmNodeToSv(tnode, owner);
+                                    element = xpc_PmmNodeToSv(tnode, owner);
                                 }
                                 XPUSHs( sv_2mortal(element) );
                             }
                         }
-                        xmlXPathFreeNodeSet( found->nodesetval );  
-                        found->nodesetval = NULL;
                     }
+                    /* prevent libxml2 from freeing the actual nodes */
+                    if (found->boolval) found->boolval=0;    
                     break;
                 case XPATH_BOOLEAN:
                     /* return as a Boolean */
@@ -957,7 +956,7 @@ _find( pxpath_context, pxpath )
                     /* access ->stringval */
                     /* return as a Literal */
                     XPUSHs(sv_2mortal(newSVpv("XML::LibXML::Literal", 0)));
-                    XPUSHs(sv_2mortal(C2Sv(found->stringval, NULL)));
+                    XPUSHs(sv_2mortal(xpc_C2Sv(found->stringval, NULL)));
                     break;
                 default:
                     croak("Unknown XPath return type");
@@ -965,5 +964,5 @@ _find( pxpath_context, pxpath )
             xmlXPathFreeObject(found);
         }
         else {
-            LibXML_croak_error();
+            xpc_LibXML_croak_error();
         }

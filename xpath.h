@@ -5,12 +5,12 @@
 #include <libxml/xpath.h>
 
 void
-perlDocumentFunction( xmlXPathParserContextPtr ctxt, int nargs );
+xpc_perlDocumentFunction( xmlXPathParserContextPtr ctxt, int nargs );
 
 xmlNodeSetPtr
-domXPathSelect( xmlXPathContextPtr ctxt, xmlChar * xpathstring );
+xpc_domXPathSelect( xmlXPathContextPtr ctxt, xmlChar * xpathstring );
 
 xmlXPathObjectPtr
-domXPathFind( xmlXPathContextPtr ctxt, xmlChar * xpathstring );
+xpc_domXPathFind( xmlXPathContextPtr ctxt, xmlChar * xpathstring );
 
 #endif

@@ -8,7 +8,7 @@
 #include "dom.h"
 
 void
-perlDocumentFunction(xmlXPathParserContextPtr ctxt, int nargs){
+xpc_perlDocumentFunction(xmlXPathParserContextPtr ctxt, int nargs){
     xmlXPathObjectPtr obj = NULL, obj2 = NULL;
     xmlChar *base = NULL, *URI = NULL;
 
@@ -48,7 +48,7 @@ perlDocumentFunction(xmlXPathParserContextPtr ctxt, int nargs){
                     valuePush(ctxt,
                               xmlXPathNewNodeSet(obj->nodesetval->nodeTab[i]));
                 }
-                perlDocumentFunction(ctxt, 2);
+                xpc_perlDocumentFunction(ctxt, 2);
                 newobj = valuePop(ctxt);
                 ret->nodesetval = xmlXPathNodeSetMerge(ret->nodesetval,
                                                        newobj->nodesetval);
@@ -124,7 +124,7 @@ perlDocumentFunction(xmlXPathParserContextPtr ctxt, int nargs){
  **/
 
 xmlXPathObjectPtr
-domXPathFind( xmlXPathContextPtr ctxt, xmlChar * path ) {
+xpc_domXPathFind( xmlXPathContextPtr ctxt, xmlChar * path ) {
     xmlXPathObjectPtr res = NULL;
   
     if ( ctxt->node != NULL && path != NULL ) {
@@ -178,11 +178,11 @@ domXPathFind( xmlXPathContextPtr ctxt, xmlChar * path ) {
 }
 
 xmlNodeSetPtr
-domXPathSelect( xmlXPathContextPtr ctxt, xmlChar * path ) {
+xpc_domXPathSelect( xmlXPathContextPtr ctxt, xmlChar * path ) {
     xmlNodeSetPtr rv = NULL;
     xmlXPathObjectPtr res = NULL;
   
-    res = domXPathFind( ctxt, path );
+    res = xpc_domXPathFind( ctxt, path );
     
     if (res != NULL) {
             /* here we have to transfer the result from the internal

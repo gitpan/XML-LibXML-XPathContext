@@ -1,4 +1,4 @@
-/* $Id: dom.c,v 1.1.1.1 2003/03/14 14:32:04 m_ilya Exp $ */
+/* $Id: dom.c,v 1.2 2003/05/20 15:25:50 pajas Exp $ */
 #include <libxml/tree.h>
 #include <libxml/encoding.h>
 #include <libxml/xmlerror.h>
@@ -20,10 +20,10 @@
 #endif
 
 /**
- * NAME domParseChar
+ * NAME xpc_domParseChar
  * TYPE function
  * SYNOPSIS
- *   int utf8char = domParseChar( curchar, &len );
+ *   int utf8char = xpc_domParseChar( curchar, &len );
  *
  * The current char value, if using UTF-8 this may actually span
  * multiple bytes in the given string. This function parses an utf8
@@ -39,7 +39,7 @@
  * 2) not all perl versions XML::LibXML intends to run with have native
  *    UTF8 support.
  *
- * domParseChar() allows to use the very same code with all versions
+ * xpc_domParseChar() allows to use the very same code with all versions
  * of perl :)
  *
  * Returns the current char value and its length
@@ -49,7 +49,7 @@
  * character is -1!
  */
 int
-domParseChar( xmlChar *cur, int *len ) 
+xpc_domParseChar( xmlChar *cur, int *len ) 
 {
     unsigned char c;
 	unsigned int val;
@@ -108,8 +108,8 @@ domParseChar( xmlChar *cur, int *len )
 }
 
 /**
- * Name: domReadWellBalancedString
- * Synopsis: xmlNodePtr domReadWellBalancedString( xmlDocPtr doc, xmlChar *string )
+ * Name: xpc_domReadWellBalancedString
+ * Synopsis: xmlNodePtr xpc_domReadWellBalancedString( xmlDocPtr doc, xmlChar *string )
  * @doc: the document, the string should belong to
  * @string: the string to parse
  *
@@ -127,7 +127,7 @@ domParseChar( xmlChar *cur, int *len )
  * the repair flag will not be recognized with the current libxml2
  **/
 xmlNodePtr 
-domReadWellBalancedString( xmlDocPtr doc, xmlChar* block, int repair ) {
+xpc_domReadWellBalancedString( xmlDocPtr doc, xmlChar* block, int repair ) {
     int retCode       = -1;
     xmlNodePtr nodes  = NULL;
     
@@ -179,7 +179,7 @@ domReadWellBalancedString( xmlDocPtr doc, xmlChar* block, int repair ) {
  * Level 2 and 3 do.
  **/
 int
-domAddNodeToList(xmlNodePtr cur, xmlNodePtr leader, xmlNodePtr followup) 
+xpc_domAddNodeToList(xmlNodePtr cur, xmlNodePtr leader, xmlNodePtr followup) 
 {
    xmlNodePtr c1 = NULL, c2 = NULL, p = NULL;
    if ( cur ) { 
@@ -228,13 +228,13 @@ domAddNodeToList(xmlNodePtr cur, xmlNodePtr leader, xmlNodePtr followup)
 }
 
 /**
- * domIsParent tests, if testnode is parent of the reference
+ * xpc_domIsParent tests, if testnode is parent of the reference
  * node. this test is very important to avoid circular constructs in
  * trees. if the ref is a parent of the cur node the
  * function returns 1 (TRUE), otherwise 0 (FALSE).
  **/
 int
-domIsParent( xmlNodePtr cur, xmlNodePtr ref ) {
+xpc_domIsParent( xmlNodePtr cur, xmlNodePtr ref ) {
     xmlNodePtr helper = NULL;
 
     if ( cur == NULL
@@ -262,7 +262,7 @@ domIsParent( xmlNodePtr cur, xmlNodePtr ref ) {
 }
 
 int
-domTestHierarchy(xmlNodePtr cur, xmlNodePtr ref) 
+xpc_domTestHierarchy(xmlNodePtr cur, xmlNodePtr ref) 
 {
     if ( !ref || !cur || cur->type == XML_ATTRIBUTE_NODE ) {
         return 0;
@@ -277,7 +277,7 @@ domTestHierarchy(xmlNodePtr cur, xmlNodePtr ref)
         break;
     }
     
-    if ( domIsParent( cur, ref ) ) {
+    if ( xpc_domIsParent( cur, ref ) ) {
         return 0;
     }
 
@@ -285,7 +285,7 @@ domTestHierarchy(xmlNodePtr cur, xmlNodePtr ref)
 }
 
 int
-domTestDocument(xmlNodePtr cur, xmlNodePtr ref)
+xpc_domTestDocument(xmlNodePtr cur, xmlNodePtr ref)
 {
     if ( cur->type == XML_DOCUMENT_NODE ) {
         switch ( ref->type ) {
@@ -306,7 +306,7 @@ domTestDocument(xmlNodePtr cur, xmlNodePtr ref)
 }
 
 void
-domUnlinkNode( xmlNodePtr node ) {
+xpc_domUnlinkNode( xmlNodePtr node ) {
     if ( node == NULL
          || ( node->prev      == NULL
               && node->next   == NULL
@@ -338,13 +338,13 @@ domUnlinkNode( xmlNodePtr node ) {
 }
 
 xmlNodePtr
-domImportNode( xmlDocPtr doc, xmlNodePtr node, int move ) {
+xpc_domImportNode( xmlDocPtr doc, xmlNodePtr node, int move ) {
     xmlNodePtr return_node = node;
 
     if ( move ) {
         return_node = node;
         if ( node->type != XML_DTD_NODE ) {
-            domUnlinkNode( node );
+            xpc_domUnlinkNode( node );
         }
     }
     else {
@@ -372,15 +372,15 @@ domImportNode( xmlDocPtr doc, xmlNodePtr node, int move ) {
 }
 
 /**
- * Name: domName
- * Synopsis: string = domName( node );
+ * Name: xpc_domName
+ * Synopsis: string = xpc_domName( node );
  *
- * domName returns the full name for the current node.
+ * xpc_domName returns the full name for the current node.
  * If the node belongs to a namespace it returns the prefix and 
  * the local name. otherwise only the local name is returned.
  **/
 xmlChar*
-domName(xmlNodePtr node) {
+xpc_domName(xmlNodePtr node) {
     xmlChar *qname = NULL; 
     if ( node ) {
         if (node->ns != NULL && node->ns->prefix != NULL) {
@@ -398,8 +398,8 @@ domName(xmlNodePtr node) {
 }
 
 /**
- * Name: domAppendChild
- * Synopsis: xmlNodePtr domAppendChild( xmlNodePtr par, xmlNodePtr newCld );
+ * Name: xpc_domAppendChild
+ * Synopsis: xmlNodePtr xpc_domAppendChild( xmlNodePtr par, xmlNodePtr newCld );
  * @par: the node to append to
  * @newCld: the node to append
  *
@@ -412,30 +412,30 @@ domName(xmlNodePtr node) {
  * implicit before it gets appended. 
  **/
 xmlNodePtr
-domAppendChild( xmlNodePtr self,
+xpc_domAppendChild( xmlNodePtr self,
                 xmlNodePtr newChild ){
     if ( self == NULL ) {
         return newChild;
     }
 
-    if ( !(domTestHierarchy(self, newChild)
-           && domTestDocument(self, newChild))){
+    if ( !(xpc_domTestHierarchy(self, newChild)
+           && xpc_domTestDocument(self, newChild))){
         xs_warn("HIERARCHIY_REQUEST_ERR\n"); 
         xmlGenericError(xmlGenericErrorContext,"HIERARCHIY_REQUEST_ERR\n");
         return NULL;
     }
 
     if ( newChild->doc == self->doc ){
-        domUnlinkNode( newChild ); 
+        xpc_domUnlinkNode( newChild ); 
     }
     else {
         xs_warn("WRONG_DOCUMENT_ERR - non conform implementation\n"); 
         /* xmlGenericError(xmlGenericErrorContext,"WRONG_DOCUMENT_ERR\n"); */
-        newChild= domImportNode( self->doc, newChild, 1 );
+        newChild= xpc_domImportNode( self->doc, newChild, 1 );
     }
  
     if ( self->children != NULL ) {
-        domAddNodeToList( newChild, self->last, NULL );
+        xpc_domAddNodeToList( newChild, self->last, NULL );
     }
     else if (newChild->type == XML_DOCUMENT_FRAG_NODE ) {
         xmlNodePtr c1 = NULL;
@@ -463,19 +463,19 @@ domAppendChild( xmlNodePtr self,
 }
 
 xmlNodePtr
-domRemoveChild( xmlNodePtr self, xmlNodePtr old ) {
+xpc_domRemoveChild( xmlNodePtr self, xmlNodePtr old ) {
     if ( self  
          && old 
 	 && old->type != XML_ATTRIBUTE_NODE
 	 && old->type != XML_NAMESPACE_DECL
          && (self == old->parent)) {
-        domUnlinkNode( old );
+        xpc_domUnlinkNode( old );
     }
     return old ;
 }
 
 xmlNodePtr
-domReplaceChild( xmlNodePtr self, xmlNodePtr new, xmlNodePtr old ) {
+xpc_domReplaceChild( xmlNodePtr self, xmlNodePtr new, xmlNodePtr old ) {
     if ( self== NULL )
         return NULL;
 
@@ -484,40 +484,40 @@ domReplaceChild( xmlNodePtr self, xmlNodePtr new, xmlNodePtr old ) {
  
     if ( new == NULL ) {
         /* level2 sais nothing about this case :( */
-        return domRemoveChild( self, old );
+        return xpc_domRemoveChild( self, old );
     }
 
     if ( old == NULL ) {
-        domAppendChild( self, new );
+        xpc_domAppendChild( self, new );
         return old;
     }
 
-    if ( !(domTestHierarchy(self, new)
-           && domTestDocument(self, new))){
+    if ( !(xpc_domTestHierarchy(self, new)
+           && xpc_domTestDocument(self, new))){
         xs_warn("HIERARCHIY_REQUEST_ERR\n"); 
         xmlGenericError(xmlGenericErrorContext,"HIERARCHIY_REQUEST_ERR\n");
         return NULL;
     }
     
     if ( new->doc == self->doc ) {
-        domUnlinkNode( new );
+        xpc_domUnlinkNode( new );
     }
     else {
         /* WRONG_DOCUMENT_ERR - non conform implementation */
-        new = domImportNode( self->doc, new, 1 );
+        new = xpc_domImportNode( self->doc, new, 1 );
     }
     
     if( old == self->children && old == self->last ) {
-        domRemoveChild( self, old );
-        domAppendChild( self, new );
+        xpc_domRemoveChild( self, old );
+        xpc_domAppendChild( self, new );
     }
     else if ( new->type == XML_DOCUMENT_FRAG_NODE 
               && new->children == NULL ) {
         /* want to replace with an empty fragment, then remove ... */
-        domRemoveChild( self, old );
+        xpc_domRemoveChild( self, old );
     }
     else {
-        domAddNodeToList(new, old->prev, old->next );
+        xpc_domAddNodeToList(new, old->prev, old->next );
         old->parent = old->next = old->prev = NULL;    
     }
 
@@ -526,7 +526,7 @@ domReplaceChild( xmlNodePtr self, xmlNodePtr new, xmlNodePtr old ) {
 
 
 xmlNodePtr
-domInsertBefore( xmlNodePtr self, 
+xpc_domInsertBefore( xmlNodePtr self, 
                  xmlNodePtr newChild,
                  xmlNodePtr refChild ){
 
@@ -548,20 +548,20 @@ domInsertBefore( xmlNodePtr self,
         return NULL;
     }
 
-    if ( !(domTestHierarchy( self, newChild )
-           && domTestDocument( self, newChild ))) {
+    if ( !(xpc_domTestHierarchy( self, newChild )
+           && xpc_domTestDocument( self, newChild ))) {
         xmlGenericError(xmlGenericErrorContext,"HIERARCHIY_REQUEST_ERR\n");
         return NULL;
     }
 
     if ( self->doc == newChild->doc ){
-        domUnlinkNode( newChild );
+        xpc_domUnlinkNode( newChild );
     }
     else {
-        newChild = domImportNode( self->doc, newChild, 1 );
+        newChild = xpc_domImportNode( self->doc, newChild, 1 );
     }
     
-    domAddNodeToList(newChild, refChild->prev, refChild);
+    xpc_domAddNodeToList(newChild, refChild->prev, refChild);
     if ( newChild->type != XML_ENTITY_REF_NODE ) {
         xmlReconciliateNs(self->doc, newChild);     
     }
@@ -573,7 +573,7 @@ domInsertBefore( xmlNodePtr self,
  * this function does not exist in the spec although it's useful
  */
 xmlNodePtr
-domInsertAfter( xmlNodePtr self, 
+xpc_domInsertAfter( xmlNodePtr self, 
                 xmlNodePtr newChild,
                 xmlNodePtr refChild ){
     if ( self == NULL || newChild == NULL ) 
@@ -583,7 +583,7 @@ domInsertAfter( xmlNodePtr self,
         return newChild;
     
     if ( refChild == NULL ) {
-        return domAppendChild( self, newChild );
+        return xpc_domAppendChild( self, newChild );
     }
 
     if ( refChild->parent != self
@@ -593,20 +593,20 @@ domInsertAfter( xmlNodePtr self,
         return NULL;
     }
 
-    if ( !(domTestHierarchy( self, newChild )
-           && domTestDocument( self, newChild ))) {
+    if ( !(xpc_domTestHierarchy( self, newChild )
+           && xpc_domTestDocument( self, newChild ))) {
         xmlGenericError(xmlGenericErrorContext,"HIERARCHIY_REQUEST_ERR\n");
         return NULL;
     }
 
     if ( self->doc == newChild->doc ){
-        domUnlinkNode( newChild );
+        xpc_domUnlinkNode( newChild );
     }
     else {
-        newChild = domImportNode( self->doc, newChild, 1 );
+        newChild = xpc_domImportNode( self->doc, newChild, 1 );
     }
 
-    domAddNodeToList(newChild, refChild, refChild->next);
+    xpc_domAddNodeToList(newChild, refChild, refChild->next);
     if ( newChild->type != XML_ENTITY_REF_NODE ) {
         xmlReconciliateNs(self->doc, newChild);     
     }
@@ -615,7 +615,7 @@ domInsertAfter( xmlNodePtr self,
 }
 
 xmlNodePtr
-domReplaceNode( xmlNodePtr oldNode, xmlNodePtr newNode ) {
+xpc_domReplaceNode( xmlNodePtr oldNode, xmlNodePtr newNode ) {
     xmlNodePtr prev = NULL, next = NULL, par = NULL;
     
     if ( oldNode == NULL
@@ -627,7 +627,7 @@ domReplaceNode( xmlNodePtr oldNode, xmlNodePtr newNode ) {
     if ( oldNode->type == XML_ATTRIBUTE_NODE
          || newNode->type == XML_ATTRIBUTE_NODE
          || newNode->type == XML_DOCUMENT_NODE
-         || domIsParent( newNode, oldNode ) ) {
+         || xpc_domIsParent( newNode, oldNode ) ) {
         /* HIERARCHY_REQUEST_ERR
          * wrong node type
          * new node is parent of itself
@@ -644,15 +644,15 @@ domReplaceNode( xmlNodePtr oldNode, xmlNodePtr newNode ) {
         xmlUnlinkNode( oldNode );
     }
     else {
-        domUnlinkNode( oldNode );
+        xpc_domUnlinkNode( oldNode );
     }
 
     if( prev == NULL && next == NULL ) {
         /* oldNode was the only child */
-        domAppendChild( par ,newNode ); 
+        xpc_domAppendChild( par ,newNode ); 
     }
     else {
-        domAddNodeToList( newNode, prev,  next );
+        xpc_domAddNodeToList( newNode, prev,  next );
     }
 
     if ( newNode->type != XML_ENTITY_REF_NODE ) {
@@ -663,7 +663,7 @@ domReplaceNode( xmlNodePtr oldNode, xmlNodePtr newNode ) {
 }
 
 xmlChar*
-domGetNodeValue( xmlNodePtr n ) {
+xpc_domGetNodeValue( xmlNodePtr n ) {
     xmlChar * retval = NULL;
     if( n != NULL ) {
         switch ( n->type ) {
@@ -715,7 +715,7 @@ domGetNodeValue( xmlNodePtr n ) {
 }
 
 void
-domSetNodeValue( xmlNodePtr n , xmlChar* val ){
+xpc_domSetNodeValue( xmlNodePtr n , xmlChar* val ){
     if ( n == NULL ) 
         return;
     if ( val == NULL ){
@@ -741,9 +741,9 @@ domSetNodeValue( xmlNodePtr n , xmlChar* val ){
 
 
 void
-domSetParentNode( xmlNodePtr self, xmlNodePtr p ) {
+xpc_domSetParentNode( xmlNodePtr self, xmlNodePtr p ) {
     /* never set the parent to a node in the own subtree */ 
-    if( self && !domIsParent(self, p)) {
+    if( self && !xpc_domIsParent(self, p)) {
         if( self->parent != p ){
             xmlUnlinkNode( self );
             self->parent = p;
@@ -755,7 +755,7 @@ domSetParentNode( xmlNodePtr self, xmlNodePtr p ) {
 }
 
 xmlNodeSetPtr
-domGetElementsByTagName( xmlNodePtr n, xmlChar* name ){
+xpc_domGetElementsByTagName( xmlNodePtr n, xmlChar* name ){
     xmlNodeSetPtr rv = NULL;
     xmlNodePtr cld = NULL;
 
@@ -779,11 +779,11 @@ domGetElementsByTagName( xmlNodePtr n, xmlChar* name ){
 
 
 xmlNodeSetPtr
-domGetElementsByTagNameNS( xmlNodePtr n, xmlChar* nsURI, xmlChar* name ){
+xpc_domGetElementsByTagNameNS( xmlNodePtr n, xmlChar* nsURI, xmlChar* name ){
     xmlNodeSetPtr rv = NULL;
 
     if ( nsURI == NULL ) {
-        return domGetElementsByTagName( n, name );
+        return xpc_domGetElementsByTagName( n, name );
     }
   
     if ( n != NULL && name != NULL  ) {
@@ -807,7 +807,7 @@ domGetElementsByTagNameNS( xmlNodePtr n, xmlChar* nsURI, xmlChar* name ){
 }
 
 xmlNsPtr
-domNewNs ( xmlNodePtr elem , xmlChar *prefix, xmlChar *href ) {
+xpc_domNewNs ( xmlNodePtr elem , xmlChar *prefix, xmlChar *href ) {
     xmlNsPtr ns = NULL;
   
     if (elem != NULL) {
@@ -828,7 +828,7 @@ domNewNs ( xmlNodePtr elem , xmlChar *prefix, xmlChar *href ) {
 
 /* This routine may or may not make it into libxml2; Matt wanted it in
    here to be nice to those with older libxml2 installations.
-   This instance is renamed from xmlHasNsProp to domHasNsProp. */
+   This instance is renamed from xmlHasNsProp to xpc_domHasNsProp. */
 /* prolly not required anymore ... */
 /**
  * xmlHasNsProp:
@@ -846,7 +846,7 @@ domNewNs ( xmlNodePtr elem , xmlChar *prefix, xmlChar *href ) {
  *     if neither was found.
  */
 xmlAttrPtr
-domHasNsProp(xmlNodePtr node, const xmlChar *name, const xmlChar *namespace) {
+xpc_domHasNsProp(xmlNodePtr node, const xmlChar *name, const xmlChar *namespace) {
     xmlAttrPtr prop = NULL;
     xmlDocPtr doc = NULL;
     xmlNsPtr ns = NULL;
@@ -909,7 +909,7 @@ domHasNsProp(xmlNodePtr node, const xmlChar *name, const xmlChar *namespace) {
 }
 
 xmlAttrPtr 
-domSetAttributeNode( xmlNodePtr node, xmlAttrPtr attr ) {
+xpc_domSetAttributeNode( xmlNodePtr node, xmlAttrPtr attr ) {
     if ( node == NULL || attr == NULL ) {
         return attr;
     }
@@ -919,7 +919,7 @@ domSetAttributeNode( xmlNodePtr node, xmlAttrPtr attr ) {
         return attr; /* attribute is allready part of the node */
     }  
     if ( attr->doc != node->doc ){
-        attr = (xmlAttrPtr) domImportNode( node->doc, (xmlNodePtr) attr, 1 ); 
+        attr = (xmlAttrPtr) xpc_domImportNode( node->doc, (xmlNodePtr) attr, 1 ); 
     } 
     else {
         xmlUnlinkNode( (xmlNodePtr) attr );
@@ -942,7 +942,7 @@ domSetAttributeNode( xmlNodePtr node, xmlAttrPtr attr ) {
 }
 
 int
-domNodeNormalize( xmlNodePtr node )
+xpc_domNodeNormalize( xmlNodePtr node )
 {
     xmlNodePtr next = NULL;
 
@@ -965,9 +965,9 @@ domNodeNormalize( xmlNodePtr node )
         }
         break;
     case XML_ELEMENT_NODE:
-        domNodeNormalizeList( (xmlNodePtr) node->properties );
+        xpc_domNodeNormalizeList( (xmlNodePtr) node->properties );
     case XML_ATTRIBUTE_NODE:
-        return( domNodeNormalizeList( node->children ) );
+        return( xpc_domNodeNormalizeList( node->children ) );
         break;
     default:
         break;
@@ -976,13 +976,13 @@ domNodeNormalize( xmlNodePtr node )
 }
 
 int
-domNodeNormalizeList( xmlNodePtr nodelist )
+xpc_domNodeNormalizeList( xmlNodePtr nodelist )
 {
     if ( nodelist == NULL ) 
         return(0);
 
     while ( nodelist ){
-        if ( domNodeNormalize( nodelist ) == 0 )
+        if ( xpc_domNodeNormalize( nodelist ) == 0 )
             return(0);
         nodelist = nodelist->next;
     }

@@ -21,9 +21,13 @@ SYNOPSIS
         $xc->unregisterVarLookupFunc($name);
 
         my @nodes = $xc->findnodes($xpath);
+        my @nodes = $xc->findnodes($xpath, $context_node);
         my $nodelist = $xc->findnodes($xpath);
+        my $nodelist = $xc->findnodes($xpath, $context_node);
         my $result = $xc->find($xpath);
+        my $result = $xc->find($xpath, $context_node);
         my $value = $xc->findvalue($xpath);
+        my $value = $xc->findvalue($xpath, $context_node);
 
 DESCRIPTION
     This module augments XML::LibXML by providing Perl interface to
@@ -88,7 +92,7 @@ EXAMPLES
           );
 
         # get names of employees from $A woring in an area listed in $B
-        $xc->registerVarLookupFunc(\&var_lookup,\%results);
+        $xc->registerVarLookupFunc(\&var_lookup, \%results);
         my @nodes = $xc->findnodes('$A[work_area/street = $B]/name');
 
 METHODS
@@ -146,12 +150,13 @@ METHODS
     unregisterFunction($name)
         Same as *unregisterFunctionNS* but without a namespace.
 
-    findnodes($xpath)
+    findnodes($xpath, [ $context_node ])
         Performs the xpath statement on the current node and returns the
         result as an array. In scalar context returns a
-        XML::LibXML::NodeList object.
+        XML::LibXML::NodeList object. Optionally, a node may be passed as a
+        second argument to set the context node for the query.
 
-    find($xpath)
+    find($xpath, [ $context_node ])
         Performs the xpath expression using the current node as the context
         of the expression, and returns the result depending on what type of
         result the XPath expression had. For example, the XPath "1 * 3 + 52"
@@ -159,9 +164,10 @@ METHODS
         expressions might return a XML::LibXML::Boolean object, or a
         XML::LibXML::Literal object (a string). Each of those objects uses
         Perl's overload feature to "do the right thing" in different
-        contexts.
+        contexts. Optionally, a node may be passed as a second argument to
+        set the context node for the query.
 
-    findvalue($xpath)
+    findvalue($xpath, [ $context_node ])
         Is exactly equivalent to:
 
             $node->find( $xpath )->to_literal;
@@ -169,7 +175,8 @@ METHODS
         That is, it returns the literal value of the results. This enables
         you to ensure that you get a string back from your search, allowing
         certain shortcuts. This could be used as the equivalent of
-        <xsl:value-of select="some_xpath"/>.
+        <xsl:value-of select="some_xpath"/>. Optionally, a node may be
+        passed in the second argument to set the context node for the query.
 
     getContextNode()
         Get the current context node.

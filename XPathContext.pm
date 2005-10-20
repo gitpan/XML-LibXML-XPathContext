@@ -1,4 +1,4 @@
-# $Id: XPathContext.pm,v 1.32 2003/11/10 10:09:12 m_ilya Exp $
+# $Id: XPathContext.pm,v 1.33 2005/10/20 16:56:09 pajas Exp $
 
 package XML::LibXML::XPathContext;
 
@@ -7,7 +7,7 @@ use vars qw($VERSION @ISA $USE_LIBXML_DATA_TYPES);
 
 use XML::LibXML::NodeList;
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 require DynaLoader;
 
 @ISA = qw(DynaLoader);

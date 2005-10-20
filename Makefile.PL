@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.1.1.1 2003/03/14 14:31:59 m_ilya Exp $
+# $Id: Makefile.PL,v 1.2 2004/04/03 21:00:19 pajas Exp $
 
 use 5.005;
 
@@ -141,7 +141,7 @@ DEATH
 
 WriteMakefile( NAME         => 'XML::LibXML::XPathContext',
 	       VERSION_FROM => 'XPathContext.pm',
-	       PREREQ_PM    => { 'XML::LibXML' => 1.51 },
+	       PREREQ_PM    => { 'XML::LibXML' => 1.58 },
                # add the DOM extensions to libxml2
                'OBJECT'     => '$(O_FILES)',
                %config,

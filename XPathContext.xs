@@ -1,4 +1,4 @@
-/* $Id: XPathContext.xs,v 1.41 2003/11/10 10:09:12 m_ilya Exp $ */
+/* $Id: XPathContext.xs,v 1.42 2005/03/24 20:18:11 pajas Exp $ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -205,7 +205,7 @@ xpc_LibXML_save_context(xmlXPathContextPtr ctxt)
 	   by configure_namespaces */
 	ctxt->namespaces = NULL;
 	/* backup data */
-	XPathContextDATA(copy) = xmlMalloc(sizeof(XPathContextData));
+	copy->user = xmlMalloc(sizeof(XPathContextData));
 	if (XPathContextDATA(copy)) {
 	    memcpy(XPathContextDATA(copy), XPathContextDATA(ctxt),sizeof(XPathContextData));
 	    /* clear ctxt->pool, so that it is not used freed during re-entrance */
@@ -239,7 +239,7 @@ xpc_LibXML_restore_context(xmlXPathContextPtr ctxt, xmlXPathContextPtr copy)
 	if (XPathContextDATA(copy)) {
 	    memcpy(XPathContextDATA(ctxt),XPathContextDATA(copy),sizeof(XPathContextData));
 	    xmlFree(XPathContextDATA(copy));
-	    XPathContextDATA(copy) = XPathContextDATA(ctxt);
+	    copy->user = XPathContextDATA(ctxt);
 	}
 	/* now copy the rest */
 	memcpy(ctxt, copy, sizeof(xmlXPathContext));
